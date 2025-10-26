@@ -3558,30 +3558,25 @@ async function checkForUpdates(forceCheck = false) {
 
         console.log('[SillyTavern-Highlighter] Checking for updates...');
 
-        // GitHub raw URL로 manifest.json 가져오기
-        // master와 main 둘 다 시도
+        // GitHub raw URL로 manifest.json 가져오기 (master 브랜치만 사용)
         const timestamp = Date.now(); // 캐시 무효화용 타임스탬프
-        const urls = [
-            `https://raw.githubusercontent.com/${GITHUB_REPO}/main/manifest.json?t=${timestamp}`,
-            `https://raw.githubusercontent.com/${GITHUB_REPO}/master/manifest.json?t=${timestamp}`
-        ];
+        const url = `https://raw.githubusercontent.com/${GITHUB_REPO}/master/manifest.json?t=${timestamp}`;
 
         let remoteManifest = null;
 
-        for (const url of urls) {
-            try {
-                // 쿼리 파라미터로 캐시 우회하므로 헤더는 최소화 (CORS 오류 방지)
-                const response = await fetch(url, {
-                    cache: 'no-store'
-                });
+        try {
+            // 쿼리 파라미터로 캐시 우회하므로 헤더는 최소화 (CORS 오류 방지)
+            const response = await fetch(url, {
+                cache: 'no-store'
+            });
 
-                if (response.ok) {
-                    remoteManifest = await response.json();
-                    break; // 성공하면 중단
-                }
-            } catch (err) {
-                console.warn(`[SillyTavern-Highlighter] Failed to fetch from ${url}:`, err);
+            if (response.ok) {
+                remoteManifest = await response.json();
+            } else {
+                console.warn(`[SillyTavern-Highlighter] Failed to fetch: HTTP ${response.status}`);
             }
+        } catch (err) {
+            console.warn(`[SillyTavern-Highlighter] Failed to fetch from ${url}:`, err);
         }
 
         if (!remoteManifest || !remoteManifest.version) {
