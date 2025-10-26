@@ -1525,3 +1525,13 @@
 .flash-highlight {
     animation: flash-highlight 1s ease-in-out 2 !important;
 }
+
+/* 업데이트 배지를 위한 헤더 레이아웃 */
+.inline-drawer-header b {
+    display: flex;
+    align-items: center;
+}
+
+.inline-drawer-header b i {
+    margin-right: 8px;
+}

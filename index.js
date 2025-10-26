@@ -405,10 +405,15 @@ const DEFAULT_COLORS = [
     { bg: '#FFD4E5', opacity: 0.8, textColor: '#222', useDefaultTextColor: false }
 ];
 
-const EXTENSION_VERSION = '1.0.0'; // 확장 프로그램 버전
+const GITHUB_REPO = 'saving3899/SillyTavern-Highlighter'; // GitHub 저장소
+const UPDATE_CHECK_CACHE_KEY = 'highlighter_update_check';
+const UPDATE_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24시간 (밀리초)
+
+// ⭐ 로컬 manifest.json에서 버전을 가져올 것임 (초기화 시 로드)
+let EXTENSION_VERSION = '1.0.0'; // 기본값 (manifest.json 로드 전)
 
 const DEFAULT_SETTINGS = {
-    version: EXTENSION_VERSION, // 데이터 버전 관리
+    version: '1.0.0', // 데이터 버전 관리 (manifest에서 자동 업데이트됨)
     enabled: true,
     deleteMode: 'keep',
     darkMode: false,
@@ -1224,6 +1229,10 @@ function getMessageLabel(mesId) {
     return `${name}#${mesId}`;
 }
 
+// ⭐ 모바일 터치 이벤트 안정화를 위한 변수
+let touchSelectionTimer = null;
+let lastTouchEnd = 0;
+
 function enableHighlightMode() {
     // 이벤트 위임 방식으로 변경 - 동적으로 로드되는 메시지에도 작동
     $(document).off('mouseup.hl touchend.hl', '.mes_text').on('mouseup.hl touchend.hl', '.mes_text', function (e) {
@@ -1231,9 +1240,26 @@ function enableHighlightMode() {
 
         // 모바일 터치 이벤트의 경우 약간의 딜레이 추가
         const isTouchEvent = e.type === 'touchend';
-        const delay = isTouchEvent ? 100 : 0;
 
-        setTimeout(() => {
+        // ⭐ 터치 이벤트 중복 방지 - 같은 터치가 여러 번 발생하는 것 방지
+        if (isTouchEvent) {
+            const now = Date.now();
+            if (now - lastTouchEnd < 300) {
+                // 300ms 이내 중복 터치는 무시
+                return;
+            }
+            lastTouchEnd = now;
+
+            // 기존 타이머 제거
+            if (touchSelectionTimer) {
+                clearTimeout(touchSelectionTimer);
+                touchSelectionTimer = null;
+            }
+        }
+
+        const delay = isTouchEvent ? 150 : 0;
+
+        const processSelection = () => {
             const sel = window.getSelection();
             let text = sel.toString();
 
@@ -1244,6 +1270,11 @@ function enableHighlightMode() {
             // 선택된 텍스트가 없으면 종료 (단순 클릭)
             if (text.length === 0) {
                 // 하이라이트 요소 클릭 시 컨텍스트 메뉴는 별도 이벤트에서 처리
+                return;
+            }
+
+            // ⭐ 텍스트가 너무 짧으면(1자 이하) 무시 (오터치 방지)
+            if (text.length < 2 && isTouchEvent) {
                 return;
             }
 
@@ -1274,12 +1305,26 @@ function enableHighlightMode() {
             } else {
                 showColorMenu(pageX, pageY, text, range, element);
             }
-        }, delay);
+        };
+
+        if (isTouchEvent) {
+            // ⭐ 모바일: 타이머로 안정화
+            touchSelectionTimer = setTimeout(processSelection, delay);
+        } else {
+            // 데스크탑: 즉시 실행
+            setTimeout(processSelection, delay);
+        }
     });
 }
 
 function disableHighlightMode() {
     $(document).off('mouseup.hl touchend.hl', '.mes_text');
+
+    // ⭐ 대기 중인 터치 타이머 제거
+    if (touchSelectionTimer) {
+        clearTimeout(touchSelectionTimer);
+        touchSelectionTimer = null;
+    }
 }
 
 // 전역 변수: document click 핸들러 추적
@@ -1404,6 +1449,16 @@ function createHighlight(text, color, range, el) {
     const tempDiv = document.createElement('div');
     tempDiv.appendChild(clonedContents);
 
+    // ⭐ 이미지, style, script 등 불필요한 요소 제거
+    const unwantedSelectors = [
+        'img', 'style', 'script', 'svg', 'canvas', 'video', 'audio', 'iframe',
+        '.custom-imageWrapper', '.custom-characterImage',
+        '[class*="image"]', '[class*="media"]'
+    ];
+    unwantedSelectors.forEach(selector => {
+        tempDiv.querySelectorAll(selector).forEach(el => el.remove());
+    });
+
     // innerHTML에서 br과 블록 요소를 줄바꿈으로 변환
     let htmlText = tempDiv.innerHTML;
 
@@ -1426,6 +1481,12 @@ function createHighlight(text, color, range, el) {
 
     // 앞뒤 공백 제거
     actualText = actualText.trim();
+
+    // ⭐ 텍스트가 너무 짧거나 비어있으면 경고
+    if (actualText.length === 0) {
+        toastr.warning('텍스트만 선택해주세요 (이미지나 HTML 코드는 제외됩니다)');
+        return;
+    }
 
     try {
         // 단일 노드인 경우
@@ -2657,15 +2718,213 @@ function deepMerge(target, source) {
     return result;
 }
 
+// ⭐⭐ 메시지 내용 기반 체크포인트/분기 감지 (경량화, mesId 독립적)
+function detectCheckpointOrBranch(currentChat, otherChatFile, charId) {
+    try {
+        console.log(`[SillyTavern-Highlighter] 🔍 Analyzing "${otherChatFile}"...`);
+
+        if (currentChat.length < 3) {
+            console.log(`[SillyTavern-Highlighter] ❌ Too few messages (${currentChat.length})`);
+            return null;
+        }
+
+        // 다른 채팅과 비교할 필요가 있는지 빠른 체크
+        const otherHighlights = settings.highlights[charId]?.[otherChatFile]?.highlights || [];
+        if (otherHighlights.length === 0) {
+            console.log(`[SillyTavern-Highlighter] ❌ No highlights in "${otherChatFile}"`);
+            return null;
+        }
+
+        console.log(`[SillyTavern-Highlighter] Found ${otherHighlights.length} highlight(s) in "${otherChatFile}"`);
+
+        // ⭐⭐ 전체 메시지를 비교 (범위 제한 없음)
+        // 현재 채팅의 모든 메시지 텍스트 수집 (HTML 태그 제거 후 정규화)
+        const currentMessages = currentChat.map(m => {
+            let text = m.mes || '';
+
+            // ⭐ HTML 태그 제거 (하이라이트 생성 시와 동일한 방식)
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = text;
+            text = tempDiv.textContent || tempDiv.innerText || '';
+
+            return text.replace(/\s+/g, ' ').trim();
+        }).filter(t => t.length > 10); // 너무 짧은 메시지는 제외
+
+        if (currentMessages.length === 0) {
+            console.log(`[SillyTavern-Highlighter] ❌ No valid messages to compare`);
+            return null;
+        }
+
+        console.log(`[SillyTavern-Highlighter] Comparing ${currentMessages.length} message(s) (full chat)...`);
+
+        // 하이라이트 텍스트 중 현재 채팅에 존재하는 것 개수 세기
+        let matchCount = 0;
+        const totalToCheck = Math.min(otherHighlights.length, 15); // 최대 15개 하이라이트 확인
+
+        for (let i = 0; i < totalToCheck; i++) {
+            const hl = otherHighlights[i];
+            const hlText = hl.text.replace(/\s+/g, ' ').trim();
+
+            if (hlText.length < 10) {
+                continue; // 너무 짧은 하이라이트는 스킵
+            }
+
+            // 현재 채팅의 어떤 메시지든 이 하이라이트 텍스트를 포함하는지 확인
+            const found = currentMessages.some(mesText => mesText.includes(hlText));
+
+            if (found) {
+                matchCount++;
+            }
+        }
+
+        // 일치율 계산
+        const matchRatio = totalToCheck > 0 ? matchCount / totalToCheck : 0;
+        console.log(`[SillyTavern-Highlighter] Match result: ${matchCount}/${totalToCheck} = ${(matchRatio * 100).toFixed(1)}%`);
+
+        // 70% 이상 일치하면 체크포인트/분기로 판단 (80%에서 70%로 완화)
+        if (matchRatio >= 0.7) {
+            console.log(`[SillyTavern-Highlighter] ✅ Checkpoint/branch detected: ${otherChatFile} (match ratio: ${(matchRatio * 100).toFixed(1)}%)`);
+            return { chatFile: otherChatFile, matchRatio: matchRatio }; // ⭐ 일치율도 함께 반환
+        }
+
+        console.log(`[SillyTavern-Highlighter] ❌ Match ratio too low (need ≥70%)`);
+        return null;
+    } catch (error) {
+        console.warn('[SillyTavern-Highlighter] Error detecting checkpoint:', error);
+        return null; // 오류 시 조용히 실패
+    }
+}
+
 function restoreHighlightsInChat() {
     const chatFile = getCurrentChatFile();
     const charId = this_chid;
 
     if (!chatFile || !charId) return;
 
-    const highlights = settings.highlights[charId]?.[chatFile]?.highlights || [];
+    // ⭐ 현재 채팅 파일의 하이라이트
+    let currentChatHighlights = settings.highlights[charId]?.[chatFile]?.highlights || [];
 
-    highlights.forEach(hl => {
+    // ⭐⭐ 체크포인트/분기 자동 복사 (안전하고 경량화됨)
+    const shouldCheckForCopy = currentChatHighlights.length === 0 && chat && chat.length >= 3;
+
+    if (shouldCheckForCopy && settings.highlights[charId]) {
+        console.log(`[SillyTavern-Highlighter] Checking for checkpoint/branch... (current chat: ${chatFile}, messages: ${chat.length})`);
+
+        try {
+            // 다른 채팅 파일들 중에서 체크포인트/분기 찾기
+            let sourceChatFile = null;
+            let bestMatchRatio = 0;
+            const otherChatFiles = Object.keys(settings.highlights[charId]).filter(f => f !== chatFile);
+            console.log(`[SillyTavern-Highlighter] Found ${otherChatFiles.length} other chat file(s) to check:`, otherChatFiles);
+
+            // ⭐ 모든 채팅을 검사하여 가장 일치율이 높은 것 선택
+            for (const otherChatFile in settings.highlights[charId]) {
+                if (otherChatFile === chatFile) continue;
+
+                const result = detectCheckpointOrBranch(chat, otherChatFile, charId);
+                // ⭐ 안전 장치: result가 객체이고 필요한 필드를 가지고 있는지 확인
+                if (result && typeof result === 'object' && result.chatFile && typeof result.matchRatio === 'number') {
+                    if (result.matchRatio > bestMatchRatio) {
+                        sourceChatFile = result.chatFile;
+                        bestMatchRatio = result.matchRatio;
+                    }
+                }
+            }
+
+            if (sourceChatFile) {
+                console.log(`[SillyTavern-Highlighter] Best match: "${sourceChatFile}" (${(bestMatchRatio * 100).toFixed(1)}%)`);
+            }
+
+            // 체크포인트/분기가 감지되면 하이라이트 복사
+            if (sourceChatFile) {
+                console.log(`[SillyTavern-Highlighter] ✅ Checkpoint/branch confirmed: ${sourceChatFile}`);
+                const copiedHighlights = [];
+                const sourceHighlights = settings.highlights[charId][sourceChatFile]?.highlights || [];
+                console.log(`[SillyTavern-Highlighter] Attempting to copy ${sourceHighlights.length} highlight(s)...`);
+
+                // ⭐⭐ 분기/체크포인트에서는 mesId가 달라질 수 있으므로 메시지 내용으로 매칭
+                sourceHighlights.forEach((hl, idx) => {
+                    const normalizedHlText = hl.text.replace(/\s+/g, ' ').trim();
+                    let foundMesId = null;
+                    let foundSwipeId = null;
+
+                    // 현재 채팅의 모든 메시지를 순회하며 하이라이트 텍스트를 포함하는 메시지 찾기
+                    for (let mesId = 0; mesId < chat.length; mesId++) {
+                        const message = chat[mesId];
+                        if (!message || !message.mes) continue;
+
+                        // ⭐ HTML 태그 제거 후 메시지 텍스트 정규화
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = message.mes;
+                        const mesTextContent = tempDiv.textContent || tempDiv.innerText || '';
+                        const mesText = mesTextContent.replace(/\s+/g, ' ').trim();
+
+                        // 하이라이트 텍스트가 포함되어 있는지 확인
+                        if (mesText.includes(normalizedHlText)) {
+                            foundMesId = mesId;
+                            foundSwipeId = message.swipe_id || 0;
+                            break; // 첫 번째 일치하는 메시지 사용
+                        }
+                    }
+
+                    // 일치하는 메시지를 찾았으면 하이라이트 복사
+                    if (foundMesId !== null) {
+                        // 중복 방지
+                        const isDuplicate = copiedHighlights.some(existing =>
+                            existing.mesId === foundMesId &&
+                            existing.text.replace(/\s+/g, ' ').trim() === normalizedHlText
+                        );
+
+                        if (!isDuplicate) {
+                            // 새 ID와 새 mesId로 복사
+                            const copiedHl = {
+                                ...hl,
+                                id: 'hl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                                mesId: foundMesId, // ⭐ 새 mesId로 업데이트
+                                swipeId: foundSwipeId, // ⭐ 새 swipeId로 업데이트
+                                label: getMessageLabel(foundMesId), // ⭐ 새 라벨로 업데이트
+                                timestamp: Date.now()
+                            };
+                            copiedHighlights.push(copiedHl);
+                            console.log(`[SillyTavern-Highlighter] Copied highlight ${idx + 1}: old mesId=${hl.mesId} → new mesId=${foundMesId}`);
+                        }
+                    } else {
+                        console.warn(`[SillyTavern-Highlighter] Could not find message for highlight ${idx + 1}: "${normalizedHlText.substring(0, 50)}..."`);
+                    }
+                });
+
+                // ⭐⭐ 복사된 하이라이트를 현재 채팅에 저장 (기존 데이터 절대 건드리지 않음)
+                if (copiedHighlights.length > 0) {
+                    if (!settings.highlights[charId]) settings.highlights[charId] = {};
+                    if (!settings.highlights[charId][chatFile]) {
+                        settings.highlights[charId][chatFile] = {
+                            lastModified: Date.now(),
+                            highlights: []
+                        };
+                    }
+
+                    // 기존 하이라이트는 유지하고 새로운 것만 추가
+                    settings.highlights[charId][chatFile].highlights = copiedHighlights;
+                    settings.highlights[charId][chatFile].lastModified = Date.now();
+                    currentChatHighlights = copiedHighlights;
+
+                    saveSettingsDebounced();
+                    console.log(`[SillyTavern-Highlighter] Auto-copied ${copiedHighlights.length} highlight(s) from checkpoint/branch: ${sourceChatFile}`);
+
+                    // 사용자에게 알림
+                    toastr.info(`${copiedHighlights.length}개의 하이라이트를 자동으로 복사했습니다`, '체크포인트/분기 감지', { timeOut: 3000 });
+                }
+            }
+        } catch (error) {
+            // 오류 발생 시 조용히 실패 (사용자에게 영향 없음)
+            console.warn('[SillyTavern-Highlighter] Error during auto-copy:', error);
+        }
+    }
+
+    // ⭐ 화면에 하이라이트 표시
+    const allHighlights = [...currentChatHighlights];
+
+    allHighlights.forEach(hl => {
         const $mes = $(`.mes[mesid="${hl.mesId}"]`);
         if ($mes.length) {
             // 스와이프 ID 확인 - 현재 표시 중인 스와이프와 일치하는 경우만 하이라이트
@@ -2842,7 +3101,7 @@ function onChatChange() {
         const currentChatFile = getCurrentChatFile();
         const currentChatLength = chat ? chat.length : 0;
 
-        // 같은 캐릭터, 같은 메시지 개수, 다른 파일 이름 = 제목만 변경
+        // 같은 캐릭터, 같은 메시지 개수, 다른 파일 이름 = 제목만 변경 OR 체크포인트/분기
         const isChatRenamed =
             previousCharId !== null &&
             currentCharId === previousCharId &&
@@ -2854,22 +3113,37 @@ function onChatChange() {
             currentChatLength > 0; // 빈 채팅이 아닌 경우만
 
         if (isChatRenamed) {
-            // 이전 파일 이름의 하이라이트 데이터가 있는지 확인
-            if (settings.highlights[currentCharId]?.[previousChatFile]) {
-                // 새 파일 이름에 데이터가 없는 경우에만 이동
-                if (!settings.highlights[currentCharId][currentChatFile]) {
-                    console.log(`[SillyTavern-Highlighter] Chat renamed detected: "${previousChatFile}" -> "${currentChatFile}" (${currentChatLength} messages)`);
+            // ⭐⭐ 체크포인트/분기와 실제 제목 변경 구별
+            // 파일명에 Branch, Checkpoint 등이 포함되어 있으면 분기/체크포인트로 판단
+            const checkpointKeywords = ['branch', 'checkpoint', 'fork', 'split'];
+            const isCheckpointOrBranch = checkpointKeywords.some(keyword =>
+                currentChatFile.toLowerCase().includes(keyword) &&
+                !previousChatFile.toLowerCase().includes(keyword)
+            );
 
-                    // 하이라이트 데이터를 새 키로 이동
-                    settings.highlights[currentCharId][currentChatFile] = settings.highlights[currentCharId][previousChatFile];
+            if (isCheckpointOrBranch) {
+                // 체크포인트/분기 생성 - 데이터 이동하지 않음 (자동 복사가 처리함)
+                console.log(`[SillyTavern-Highlighter] Checkpoint/branch creation detected: "${previousChatFile}" -> "${currentChatFile}"`);
+                console.log(`[SillyTavern-Highlighter] Highlights will be auto-copied by restoreHighlightsInChat()`);
+            } else {
+                // 실제 채팅 제목 변경 - 데이터 이동
+                // 이전 파일 이름의 하이라이트 데이터가 있는지 확인
+                if (settings.highlights[currentCharId]?.[previousChatFile]) {
+                    // 새 파일 이름에 데이터가 없는 경우에만 이동
+                    if (!settings.highlights[currentCharId][currentChatFile]) {
+                        console.log(`[SillyTavern-Highlighter] Chat renamed detected: "${previousChatFile}" -> "${currentChatFile}" (${currentChatLength} messages)`);
 
-                    // 이전 키 삭제
-                    delete settings.highlights[currentCharId][previousChatFile];
+                        // 하이라이트 데이터를 새 키로 이동
+                        settings.highlights[currentCharId][currentChatFile] = settings.highlights[currentCharId][previousChatFile];
 
-                    // 저장
-                    saveSettingsDebounced();
+                        // 이전 키 삭제
+                        delete settings.highlights[currentCharId][previousChatFile];
 
-                    toastr.success('하이라이트가 변경된 채팅 제목과 동기화되었습니다');
+                        // 저장
+                        saveSettingsDebounced();
+
+                        toastr.success('하이라이트가 변경된 채팅 제목과 동기화되었습니다');
+                    }
                 }
             }
         }
@@ -3229,10 +3503,168 @@ function setupChatObserver() {
     console.log('[SillyTavern-Highlighter] Chat observer set up');
 }
 
+// ====================================
+// 업데이트 체크 기능
+// ====================================
+
+// 버전 비교 함수 (semantic versioning)
+function compareVersions(v1, v2) {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+
+    for (let i = 0; i < 3; i++) {
+        const p1 = parts1[i] || 0;
+        const p2 = parts2[i] || 0;
+
+        if (p1 > p2) return 1;  // v1이 더 최신
+        if (p1 < p2) return -1; // v2가 더 최신
+    }
+
+    return 0; // 같음
+}
+
+// GitHub에서 최신 버전 확인
+async function checkForUpdates() {
+    try {
+        // 캐시 확인 (24시간마다만 체크)
+        const cached = localStorage.getItem(UPDATE_CHECK_CACHE_KEY);
+        if (cached) {
+            const cacheData = JSON.parse(cached);
+            const now = Date.now();
+
+            if (now - cacheData.timestamp < UPDATE_CHECK_INTERVAL) {
+                console.log('[SillyTavern-Highlighter] Using cached update check');
+                return cacheData.hasUpdate ? cacheData.latestVersion : null;
+            }
+        }
+
+        console.log('[SillyTavern-Highlighter] Checking for updates...');
+
+        // GitHub raw URL로 manifest.json 가져오기
+        // master와 main 둘 다 시도
+        const urls = [
+            `https://raw.githubusercontent.com/${GITHUB_REPO}/main/manifest.json`,
+            `https://raw.githubusercontent.com/${GITHUB_REPO}/master/manifest.json`
+        ];
+
+        let remoteManifest = null;
+
+        for (const url of urls) {
+            try {
+                const response = await fetch(url, {
+                    cache: 'no-cache',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    remoteManifest = await response.json();
+                    break; // 성공하면 중단
+                }
+            } catch (err) {
+                console.warn(`[SillyTavern-Highlighter] Failed to fetch from ${url}:`, err);
+            }
+        }
+
+        if (!remoteManifest || !remoteManifest.version) {
+            console.warn('[SillyTavern-Highlighter] Could not fetch remote version');
+            return null;
+        }
+
+        const latestVersion = remoteManifest.version;
+        const currentVersion = EXTENSION_VERSION;
+
+        console.log(`[SillyTavern-Highlighter] Current: ${currentVersion}, Latest: ${latestVersion}`);
+
+        const comparison = compareVersions(latestVersion, currentVersion);
+        const hasUpdate = comparison > 0;
+
+        // 캐시 저장
+        localStorage.setItem(UPDATE_CHECK_CACHE_KEY, JSON.stringify({
+            timestamp: Date.now(),
+            latestVersion: latestVersion,
+            hasUpdate: hasUpdate
+        }));
+
+        if (hasUpdate) {
+            console.log(`[SillyTavern-Highlighter] ✨ Update available: ${latestVersion}`);
+            return latestVersion;
+        } else {
+            console.log('[SillyTavern-Highlighter] You are up to date!');
+            return null;
+        }
+
+    } catch (error) {
+        console.warn('[SillyTavern-Highlighter] Update check failed:', error);
+        return null; // 오류 시 조용히 실패
+    }
+}
+
+// 업데이트 알림 표시
+function showUpdateNotification(latestVersion) {
+    try {
+        // settings.html의 헤더 찾기
+        const $header = $('.highlighter-settings .inline-drawer-header b');
+
+        if ($header.length) {
+            // 이미 UPDATE 표시가 있으면 중복 방지
+            if ($header.find('.hl-update-badge').length > 0) return;
+
+            // UPDATE 배지 추가 (클릭 불가, 표시만)
+            const badge = `<span class="hl-update-badge" style="
+                display: inline-block;
+                margin-left: 8px;
+                padding: 2px 8px;
+                background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+                color: white;
+                font-size: 11px;
+                font-weight: 700;
+                border-radius: 4px;
+                animation: pulse 2s ease-in-out infinite;
+                box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+                vertical-align: middle;
+            " title="새 버전 ${latestVersion} 사용 가능">UPDATE!</span>`;
+
+            $header.append(badge);
+
+            // CSS 애니메이션 추가
+            if (!$('#hl-update-animation').length) {
+                $('<style id="hl-update-animation">@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } }</style>').appendTo('head');
+            }
+
+            console.log('[SillyTavern-Highlighter] Update notification displayed');
+
+            // 사용자에게 토스트 알림
+            toastr.info(`새 버전 ${latestVersion}이(가) 출시되었습니다!<br>설정 페이지에서 확인하세요.`, '형광펜 업데이트', {
+                timeOut: 10000,
+                extendedTimeOut: 5000,
+                escapeHtml: false
+            });
+        }
+    } catch (error) {
+        console.warn('[SillyTavern-Highlighter] Failed to show update notification:', error);
+    }
+}
+
 (async function () {
     console.log('[SillyTavern-Highlighter] Loading...');
 
     const extensionFolderPath = await getExtensionFolderPath();
+
+    // ⭐ manifest.json에서 버전 로드
+    try {
+        const manifestResponse = await fetch(`${extensionFolderPath}/manifest.json`);
+        if (manifestResponse.ok) {
+            const manifest = await manifestResponse.json();
+            if (manifest.version) {
+                EXTENSION_VERSION = manifest.version;
+                console.log(`[SillyTavern-Highlighter] Version loaded from manifest: ${EXTENSION_VERSION}`);
+            }
+        }
+    } catch (error) {
+        console.warn('[SillyTavern-Highlighter] Could not load manifest.json, using default version');
+    }
 
     // 설정 로드 및 초기화
     let loadedSettings = extension_settings[extensionName];
@@ -3353,4 +3785,16 @@ function setupChatObserver() {
     }
 
     console.log('[SillyTavern-Highlighter] Loaded');
+
+    // ⭐ 업데이트 체크 (비동기, 백그라운드 실행)
+    setTimeout(async () => {
+        try {
+            const latestVersion = await checkForUpdates();
+            if (latestVersion) {
+                showUpdateNotification(latestVersion);
+            }
+        } catch (error) {
+            console.warn('[SillyTavern-Highlighter] Update check failed silently:', error);
+        }
+    }, 2000); // 2초 후 실행 (다른 초기화 완료 후)
 })();
