@@ -3542,9 +3542,10 @@ async function checkForUpdates() {
 
         // GitHub raw URL로 manifest.json 가져오기
         // master와 main 둘 다 시도
+        const timestamp = Date.now(); // 캐시 무효화용 타임스탬프
         const urls = [
-            `https://raw.githubusercontent.com/${GITHUB_REPO}/main/manifest.json`,
-            `https://raw.githubusercontent.com/${GITHUB_REPO}/master/manifest.json`
+            `https://raw.githubusercontent.com/${GITHUB_REPO}/main/manifest.json?t=${timestamp}`,
+            `https://raw.githubusercontent.com/${GITHUB_REPO}/master/manifest.json?t=${timestamp}`
         ];
 
         let remoteManifest = null;
@@ -3552,9 +3553,12 @@ async function checkForUpdates() {
         for (const url of urls) {
             try {
                 const response = await fetch(url, {
-                    cache: 'no-cache',
+                    cache: 'no-store', // no-cache → no-store (더 강력)
                     headers: {
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
                     }
                 });
 
