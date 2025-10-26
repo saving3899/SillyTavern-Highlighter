@@ -2,9 +2,6 @@
 
 SillyTavern용 이북앱 스타일 형광펜 확장프로그램
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/saving3899/SillyTavern-Highlighter)
-[![SillyTavern](https://img.shields.io/badge/SillyTavern-compatible-green.svg)](https://github.com/SillyTavern/SillyTavern)
-
 ## 📖 소개
 
 채팅 내용 중 중요한 부분을 형광펜으로 표시하고 독서노트처럼 관리할 수 있는 확장프로그램
