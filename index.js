@@ -3524,17 +3524,30 @@ function compareVersions(v1, v2) {
 }
 
 // GitHub에서 최신 버전 확인
-async function checkForUpdates() {
+async function checkForUpdates(forceCheck = false) {
     try {
-        // 캐시 확인 (24시간마다만 체크)
-        const cached = localStorage.getItem(UPDATE_CHECK_CACHE_KEY);
-        if (cached) {
-            const cacheData = JSON.parse(cached);
-            const now = Date.now();
+        // 강제 체크가 아닌 경우에만 캐시 확인
+        if (!forceCheck) {
+            // 세션 캐시 확인 (같은 세션 내에서는 한 번만 체크)
+            const sessionCached = sessionStorage.getItem(UPDATE_CHECK_CACHE_KEY);
+            if (sessionCached) {
+                const sessionData = JSON.parse(sessionCached);
+                console.log('[SillyTavern-Highlighter] Using session cached update check');
+                return sessionData.hasUpdate ? sessionData.latestVersion : null;
+            }
 
-            if (now - cacheData.timestamp < UPDATE_CHECK_INTERVAL) {
-                console.log('[SillyTavern-Highlighter] Using cached update check');
-                return cacheData.hasUpdate ? cacheData.latestVersion : null;
+            // localStorage 캐시 확인 (24시간마다만 체크)
+            const cached = localStorage.getItem(UPDATE_CHECK_CACHE_KEY);
+            if (cached) {
+                const cacheData = JSON.parse(cached);
+                const now = Date.now();
+
+                if (now - cacheData.timestamp < UPDATE_CHECK_INTERVAL) {
+                    console.log('[SillyTavern-Highlighter] Using localStorage cached update check');
+                    // sessionStorage에도 저장 (세션 내 중복 체크 방지)
+                    sessionStorage.setItem(UPDATE_CHECK_CACHE_KEY, JSON.stringify(cacheData));
+                    return cacheData.hasUpdate ? cacheData.latestVersion : null;
+                }
             }
         }
 
@@ -3579,12 +3592,18 @@ async function checkForUpdates() {
         const comparison = compareVersions(latestVersion, currentVersion);
         const hasUpdate = comparison > 0;
 
-        // 캐시 저장
-        localStorage.setItem(UPDATE_CHECK_CACHE_KEY, JSON.stringify({
+        // 캐시 데이터
+        const cacheData = {
             timestamp: Date.now(),
             latestVersion: latestVersion,
             hasUpdate: hasUpdate
-        }));
+        };
+
+        // localStorage에 저장 (24시간 캐시)
+        localStorage.setItem(UPDATE_CHECK_CACHE_KEY, JSON.stringify(cacheData));
+
+        // sessionStorage에도 저장 (세션 내 중복 체크 방지)
+        sessionStorage.setItem(UPDATE_CHECK_CACHE_KEY, JSON.stringify(cacheData));
 
         if (hasUpdate) {
             console.log(`[SillyTavern-Highlighter] ✨ Update available: ${latestVersion}`);
@@ -3755,8 +3774,9 @@ function showUpdateNotification(latestVersion) {
             try {
                 // 캐시 강제 무시
                 localStorage.removeItem(UPDATE_CHECK_CACHE_KEY);
+                sessionStorage.removeItem(UPDATE_CHECK_CACHE_KEY);
 
-                const latestVersion = await checkForUpdates();
+                const latestVersion = await checkForUpdates(true); // 강제 체크
 
                 if (latestVersion) {
                     // 업데이트 있음
