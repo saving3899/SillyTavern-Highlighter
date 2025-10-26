@@ -1,0 +1,12 @@
+{
+    "display_name": "형광펜",
+    "loading_order": 200,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "saving3899",
+    "version": "1.0.0",
+    "homePage": "https://github.com/saving3899/SillyTavern-Highlighter",
+    "description": "이북앱 스타일 형광펜 모드 / 깡갤 대피소 갤러리에서만 배포됨"
+}
