@@ -1449,11 +1449,18 @@ function createHighlight(text, color, range, el) {
     const tempDiv = document.createElement('div');
     tempDiv.appendChild(clonedContents);
 
-    // ⭐ 이미지, style, script 등 불필요한 요소 제거
+    // ⭐ 이미지, style, script, 코드 블록 등 불필요한 요소 제거
     const unwantedSelectors = [
-        'img', 'style', 'script', 'svg', 'canvas', 'video', 'audio', 'iframe',
-        '.custom-imageWrapper', '.custom-characterImage',
-        '[class*="image"]', '[class*="media"]'
+        // 미디어 및 코드
+        'img', 'style', 'script', 'pre', 'code',
+        'svg', 'canvas', 'video', 'audio', 'iframe',
+        'object', 'embed', 'picture', 'source',
+        // 커스텀 렌더링 컨테이너 (확장/플러그인)
+        '.TH-render',              // TavernHelper HTML 렌더링
+        '.custom-imageWrapper',    // 커스텀 이미지 래퍼
+        '.custom-characterImage',  // 캐릭터 이미지
+        '[class*="-render"]',      // 다양한 렌더러 클래스
+        '[class*="code-block"]'    // 코드 블록 관련
     ];
     unwantedSelectors.forEach(selector => {
         tempDiv.querySelectorAll(selector).forEach(el => el.remove());
@@ -2242,7 +2249,23 @@ async function jumpToMessageInternal(mesId, hlId) {
 
             if (result) {
                 const hlText = result.highlight.text;
-                const mesText = $mes.find('.mes_text').text();
+
+                // ⭐ 이미지/HTML 제거 후 텍스트 추출 (createHighlight와 동일한 방식)
+                const mesHtml = $mes.find('.mes_text').html();
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = mesHtml;
+
+                // 이미지, style, script 등 불필요한 요소 제거
+                const unwantedSelectors = [
+                    'img', 'style', 'script', 'svg', 'canvas', 'video', 'audio', 'iframe',
+                    '.custom-imageWrapper', '.custom-characterImage',
+                    '[class*="image"]', '[class*="media"]'
+                ];
+                unwantedSelectors.forEach(selector => {
+                    tempDiv.querySelectorAll(selector).forEach(el => el.remove());
+                });
+
+                const mesText = tempDiv.textContent || tempDiv.innerText || '';
 
                 // 줄바꿈 정규화 후 비교
                 const normalizedHlText = hlText.replace(/\n+/g, ' ').trim();
@@ -2304,7 +2327,23 @@ async function jumpToMessageInternal(mesId, hlId) {
 
                         if (result) {
                             const hlText = result.highlight.text;
-                            const mesText = $retryMes.find('.mes_text').text();
+
+                            // ⭐ 이미지/HTML 제거 후 텍스트 추출 (createHighlight와 동일한 방식)
+                            const mesHtml = $retryMes.find('.mes_text').html();
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = mesHtml;
+
+                            // 이미지, style, script 등 불필요한 요소 제거
+                            const unwantedSelectors = [
+                                'img', 'style', 'script', 'svg', 'canvas', 'video', 'audio', 'iframe',
+                                '.custom-imageWrapper', '.custom-characterImage',
+                                '[class*="image"]', '[class*="media"]'
+                            ];
+                            unwantedSelectors.forEach(selector => {
+                                tempDiv.querySelectorAll(selector).forEach(el => el.remove());
+                            });
+
+                            const mesText = tempDiv.textContent || tempDiv.innerText || '';
 
                             // 줄바꿈 정규화 후 비교
                             const normalizedHlText = hlText.replace(/\n+/g, ' ').trim();
@@ -2945,8 +2984,22 @@ function restoreHighlightsInChat() {
                 return;
             }
 
-            // 텍스트 컨텐츠 가져오기 (줄바꿈 정규화)
-            const textContent = $text.text();
+            // ⭐ 이미지/HTML 제거 후 텍스트 추출 (createHighlight와 동일한 방식)
+            const mesHtml = $text.html();
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = mesHtml;
+
+            // 이미지, style, script 등 불필요한 요소 제거
+            const unwantedSelectors = [
+                'img', 'style', 'script', 'svg', 'canvas', 'video', 'audio', 'iframe',
+                '.custom-imageWrapper', '.custom-characterImage',
+                '[class*="image"]', '[class*="media"]'
+            ];
+            unwantedSelectors.forEach(selector => {
+                tempDiv.querySelectorAll(selector).forEach(el => el.remove());
+            });
+
+            const textContent = tempDiv.textContent || tempDiv.innerText || '';
             const normalizedHlText = hl.text.replace(/\n+/g, ' ').trim();
             const normalizedMesText = textContent.replace(/\s+/g, ' ').trim();
 
@@ -2968,6 +3021,20 @@ function restoreHighlightsInChat() {
 function highlightTextInElement(element, searchText, hlId, color) {
     const bgColor = getBackgroundColorFromHex(color);
 
+    // ⭐ 불필요한 요소 선택자
+    const unwantedSelectors = [
+        // 미디어 및 코드
+        'img', 'style', 'script', 'pre', 'code',
+        'svg', 'canvas', 'video', 'audio', 'iframe',
+        'object', 'embed', 'picture', 'source',
+        // 커스텀 렌더링 컨테이너 (확장/플러그인)
+        '.TH-render',              // TavernHelper HTML 렌더링
+        '.custom-imageWrapper',    // 커스텀 이미지 래퍼
+        '.custom-characterImage',  // 캐릭터 이미지
+        '[class*="-render"]',      // 다양한 렌더러 클래스
+        '[class*="code-block"]'    // 코드 블록 관련
+    ];
+
     const walker = document.createTreeWalker(
         element,
         NodeFilter.SHOW_TEXT,
@@ -2979,8 +3046,25 @@ function highlightTextInElement(element, searchText, hlId, color) {
     let fullText = '';
 
     while (walker.nextNode()) {
-        textNodes.push(walker.currentNode);
-        fullText += walker.currentNode.textContent;
+        // ⭐ 불필요한 요소의 자식 텍스트 노드는 제외
+        let shouldSkip = false;
+        let parent = walker.currentNode.parentElement;
+
+        while (parent && parent !== element) {
+            for (const selector of unwantedSelectors) {
+                if (parent.matches && parent.matches(selector)) {
+                    shouldSkip = true;
+                    break;
+                }
+            }
+            if (shouldSkip) break;
+            parent = parent.parentElement;
+        }
+
+        if (!shouldSkip) {
+            textNodes.push(walker.currentNode);
+            fullText += walker.currentNode.textContent;
+        }
     }
 
     // 줄바꿈 정규화 및 매핑 테이블 생성
