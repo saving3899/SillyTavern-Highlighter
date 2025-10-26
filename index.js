@@ -3747,6 +3747,65 @@ function showUpdateNotification(latestVersion) {
         $('#hl-import-colors').on('click', () => $('#hl-color-import-input').click());
         $('#hl-color-import-input').on('change', importColors);
 
+        // 업데이트 확인 버튼
+        $('#hl-check-update-btn').on('click', async function() {
+            const $btn = $(this);
+            const $status = $('#hl-update-status');
+
+            // 버튼 비활성화 및 로딩 표시
+            $btn.prop('disabled', true);
+            $btn.html('<i class="fa-solid fa-spinner fa-spin"></i> 확인 중...');
+            $status.hide();
+
+            try {
+                // 캐시 강제 무시
+                localStorage.removeItem(UPDATE_CHECK_CACHE_KEY);
+
+                const latestVersion = await checkForUpdates();
+
+                if (latestVersion) {
+                    // 업데이트 있음
+                    $status.css({
+                        'background': 'rgba(255, 107, 107, 0.1)',
+                        'border': '1px solid rgba(255, 107, 107, 0.3)',
+                        'color': '#ff6b6b'
+                    }).html(`
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <strong>새 버전 ${latestVersion}이(가) 출시되었습니다!</strong><br>
+                        <span style="font-size: 12px;">SillyTavern의 Extensions 메뉴에서 업데이트할 수 있습니다.</span>
+                    `).show();
+
+                    // 헤더에 UPDATE! 배지 표시
+                    showUpdateNotification(latestVersion);
+                } else {
+                    // 최신 버전
+                    $status.css({
+                        'background': 'rgba(76, 175, 80, 0.1)',
+                        'border': '1px solid rgba(76, 175, 80, 0.3)',
+                        'color': '#4caf50'
+                    }).html(`
+                        <i class="fa-solid fa-circle-check"></i>
+                        <strong>최신 버전을 사용 중입니다!</strong> (v${EXTENSION_VERSION})
+                    `).show();
+                }
+            } catch (error) {
+                console.error('[SillyTavern-Highlighter] Update check failed:', error);
+                $status.css({
+                    'background': 'rgba(255, 152, 0, 0.1)',
+                    'border': '1px solid rgba(255, 152, 0, 0.3)',
+                    'color': '#ff9800'
+                }).html(`
+                    <i class="fa-solid fa-circle-xmark"></i>
+                    <strong>업데이트 확인 실패</strong><br>
+                    <span style="font-size: 12px;">네트워크 연결을 확인해주세요.</span>
+                `).show();
+            } finally {
+                // 버튼 복원
+                $btn.prop('disabled', false);
+                $btn.html('<i class="fa-solid fa-sync"></i> 업데이트 확인');
+            }
+        });
+
     } catch (error) {
         console.warn('[SillyTavern-Highlighter] Settings HTML load failed:', error);
     }
