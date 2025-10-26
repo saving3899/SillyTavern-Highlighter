@@ -3787,7 +3787,7 @@ function showUpdateNotification(latestVersion) {
                     }).html(`
                         <i class="fa-solid fa-circle-exclamation"></i>
                         <strong>새 버전 ${latestVersion}이(가) 출시되었습니다!</strong><br>
-                        <span style="font-size: 12px;">확장 프로그램 관리에서 업데이트할 수 있습니다.</span>
+                        <span style="font-size: 12px !important;">확장 프로그램 관리에서 업데이트할 수 있습니다.</span>
                     `).show();
 
                     // 헤더에 UPDATE! 배지 표시
