@@ -3552,14 +3552,9 @@ async function checkForUpdates() {
 
         for (const url of urls) {
             try {
+                // 쿼리 파라미터로 캐시 우회하므로 헤더는 최소화 (CORS 오류 방지)
                 const response = await fetch(url, {
-                    cache: 'no-store', // no-cache → no-store (더 강력)
-                    headers: {
-                        'Accept': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'Pragma': 'no-cache',
-                        'Expires': '0'
-                    }
+                    cache: 'no-store'
                 });
 
                 if (response.ok) {
