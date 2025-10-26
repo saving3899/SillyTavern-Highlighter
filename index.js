@@ -3619,9 +3619,15 @@ async function checkForUpdates(forceCheck = false) {
     }
 }
 
+// 업데이트 버전 저장 (DOM 준비 전에도 기억)
+let pendingUpdateVersion = null;
+
 // 업데이트 알림 표시
 function showUpdateNotification(latestVersion) {
     try {
+        // 버전 저장 (나중에 다시 시도하기 위해)
+        pendingUpdateVersion = latestVersion;
+
         // settings.html의 헤더 찾기
         const $header = $('.highlighter-settings .inline-drawer-header b');
 
@@ -3659,6 +3665,10 @@ function showUpdateNotification(latestVersion) {
                 extendedTimeOut: 5000,
                 escapeHtml: false
             });
+
+            pendingUpdateVersion = null; // 성공했으면 초기화
+        } else {
+            console.log('[SillyTavern-Highlighter] Settings panel not ready, will retry later');
         }
     } catch (error) {
         console.warn('[SillyTavern-Highlighter] Failed to show update notification:', error);
@@ -3823,6 +3833,12 @@ function showUpdateNotification(latestVersion) {
 
     } catch (error) {
         console.warn('[SillyTavern-Highlighter] Settings HTML load failed:', error);
+    }
+
+    // ⭐ Settings HTML 로드 완료 후, 대기 중인 업데이트 알림이 있으면 표시
+    if (pendingUpdateVersion) {
+        console.log('[SillyTavern-Highlighter] Showing pending update notification');
+        showUpdateNotification(pendingUpdateVersion);
     }
 
     eventSource.on(event_types.CHARACTER_SELECTED, onCharacterChange);
