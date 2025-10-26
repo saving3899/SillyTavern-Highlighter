@@ -3533,7 +3533,9 @@ async function checkForUpdates(forceCheck = false) {
             if (sessionCached) {
                 const sessionData = JSON.parse(sessionCached);
                 console.log('[SillyTavern-Highlighter] Using session cached update check');
-                return sessionData.hasUpdate ? sessionData.latestVersion : null;
+                // ⭐ 캐시된 버전과 현재 버전 비교 (업데이트 후 캐시 무효화)
+                const comparison = compareVersions(sessionData.latestVersion, EXTENSION_VERSION);
+                return comparison > 0 ? sessionData.latestVersion : null;
             }
 
             // localStorage 캐시 확인 (24시간마다만 체크)
@@ -3544,9 +3546,12 @@ async function checkForUpdates(forceCheck = false) {
 
                 if (now - cacheData.timestamp < UPDATE_CHECK_INTERVAL) {
                     console.log('[SillyTavern-Highlighter] Using localStorage cached update check');
+                    // ⭐ 캐시된 버전과 현재 버전 비교 (업데이트 후 캐시 무효화)
+                    const comparison = compareVersions(cacheData.latestVersion, EXTENSION_VERSION);
+                    const hasUpdate = comparison > 0;
                     // sessionStorage에도 저장 (세션 내 중복 체크 방지)
                     sessionStorage.setItem(UPDATE_CHECK_CACHE_KEY, JSON.stringify(cacheData));
-                    return cacheData.hasUpdate ? cacheData.latestVersion : null;
+                    return hasUpdate ? cacheData.latestVersion : null;
                 }
             }
         }
