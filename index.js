@@ -433,6 +433,9 @@ let isHighlightMode = false;
 let isDragging = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
+let previousChatFile = null; // 채팅 제목 변경 감지용
+let previousCharId = null; // 캐릭터 변경 감지용
+let previousChatLength = null; // 채팅 메시지 개수 (같은 채팅인지 확인용)
 
 // ====================================
 // 데이터 안정성 및 마이그레이션
@@ -2813,6 +2816,11 @@ function onCharacterChange() {
 
     // DOM 업데이트 대기 후 하이라이트 복원 및 형광펜 모드 재활성화
     setTimeout(() => {
+        // 캐릭터 변경 시 이전 상태 업데이트
+        previousCharId = this_chid;
+        previousChatFile = getCurrentChatFile();
+        previousChatLength = chat ? chat.length : 0;
+
         restoreHighlightsInChat();
 
         if (isHighlightMode) {
@@ -2829,6 +2837,48 @@ function onChatChange() {
 
     // DOM 업데이트 대기 후 하이라이트 복원 및 형광펜 모드 재활성화
     setTimeout(() => {
+        // 채팅 제목 변경 감지 및 데이터 동기화
+        const currentCharId = this_chid;
+        const currentChatFile = getCurrentChatFile();
+        const currentChatLength = chat ? chat.length : 0;
+
+        // 같은 캐릭터, 같은 메시지 개수, 다른 파일 이름 = 제목만 변경
+        const isChatRenamed =
+            previousCharId !== null &&
+            currentCharId === previousCharId &&
+            previousChatFile !== null &&
+            currentChatFile !== null &&
+            previousChatFile !== currentChatFile &&
+            previousChatLength !== null &&
+            currentChatLength === previousChatLength &&
+            currentChatLength > 0; // 빈 채팅이 아닌 경우만
+
+        if (isChatRenamed) {
+            // 이전 파일 이름의 하이라이트 데이터가 있는지 확인
+            if (settings.highlights[currentCharId]?.[previousChatFile]) {
+                // 새 파일 이름에 데이터가 없는 경우에만 이동
+                if (!settings.highlights[currentCharId][currentChatFile]) {
+                    console.log(`[SillyTavern-Highlighter] Chat renamed detected: "${previousChatFile}" -> "${currentChatFile}" (${currentChatLength} messages)`);
+
+                    // 하이라이트 데이터를 새 키로 이동
+                    settings.highlights[currentCharId][currentChatFile] = settings.highlights[currentCharId][previousChatFile];
+
+                    // 이전 키 삭제
+                    delete settings.highlights[currentCharId][previousChatFile];
+
+                    // 저장
+                    saveSettingsDebounced();
+
+                    toastr.success('하이라이트가 변경된 채팅 제목과 동기화되었습니다');
+                }
+            }
+        }
+
+        // 현재 상태 저장
+        previousCharId = currentCharId;
+        previousChatFile = currentChatFile;
+        previousChatLength = currentChatLength;
+
         restoreHighlightsInChat();
 
         if (isHighlightMode) {
@@ -3277,6 +3327,11 @@ function setupChatObserver() {
 
     // 동적 색상 스타일 적용
     updateDynamicColorStyles();
+
+    // 초기 상태 저장 (채팅 제목 변경 감지를 위해)
+    previousCharId = this_chid;
+    previousChatFile = getCurrentChatFile();
+    previousChatLength = chat ? chat.length : 0;
 
     restoreHighlightsInChat();
 
