@@ -773,6 +773,9 @@ function openPanel() {
         $('body').css('overflow', 'hidden');
     }
 
+    // 캐릭터 정보 캐시 초기화 (실시간 반영용)
+    initCharacterCache();
+
     renderView();
 }
 
@@ -1103,6 +1106,9 @@ function resetTabCounts() {
 }
 
 function renderCharacterList($container) {
+    // 기존 내용 초기화
+    $container.empty();
+
     let charIds = Object.keys(settings.highlights).filter(charId => {
         const chats = settings.highlights[charId];
         return Object.keys(chats).some(chatFile => chats[chatFile].highlights.length > 0);
@@ -1138,12 +1144,15 @@ function renderCharacterList($container) {
         });
     }
 
+    // 이미지 캐시 무효화를 위한 타임스탬프
+    const timestamp = Date.now();
+
     charIds.forEach(charId => {
         const charData = characters[charId];
         const charName = charData?.name || 'Unknown';
         const totalHighlights = getTotalHighlightsForCharacter(charId);
         const avatar = charData?.avatar ?
-            `/thumbnail?type=avatar&file=${charData.avatar}` :
+            `/thumbnail?type=avatar&file=${charData.avatar}&t=${timestamp}` :
             '/img/five.png';
         const memo = settings.characterMemos?.[charId] || '';
         const memoDisplay = memo ? `<span class="hl-memo">${memo}</span>` : '';
@@ -1368,6 +1377,9 @@ function openChatMemoEditor(charId, chatFile) {
 }
 
 function renderChatList($container, characterId) {
+    // 기존 내용 초기화
+    $container.empty();
+
     const chats = settings.highlights[characterId];
     let chatFiles = Object.keys(chats).filter(chatFile => chats[chatFile].highlights.length > 0);
 
@@ -1445,6 +1457,9 @@ function renderChatList($container, characterId) {
 }
 
 function renderHighlightList($container, characterId, chatFile, activeTab) {
+    // 기존 내용 초기화
+    $container.empty();
+
     const highlights = settings.highlights[characterId]?.[chatFile]?.highlights || [];
 
     let filtered = activeTab === 'notes' ?
@@ -3666,6 +3681,85 @@ function onChatChange() {
     }, 500);
 }
 
+// 캐릭터 정보 캐시 (변경 감지용)
+let characterCache = {};
+
+// 캐릭터 정보 변경 감지
+function checkCharacterChanges() {
+    // 패널이 열려있을 때만 체크
+    if (!$('#highlighter-panel').hasClass('visible')) {
+        return;
+    }
+
+    let hasChanges = false;
+
+    // 현재 화면에 표시된 캐릭터들만 체크
+    if (currentView === VIEW_LEVELS.CHARACTER_LIST) {
+        // 캐릭터 리스트에 있는 모든 캐릭터 체크
+        const charIds = Object.keys(settings.highlights);
+        for (const charId of charIds) {
+            const currentData = characters[charId];
+            if (!currentData) continue;
+
+            const cached = characterCache[charId];
+            const currentHash = `${currentData.name}|${currentData.avatar}`;
+
+            if (cached !== currentHash) {
+                characterCache[charId] = currentHash;
+                hasChanges = true;
+            }
+        }
+
+        if (hasChanges) {
+            const $content = $('#highlighter-content');
+            renderCharacterList($content);
+        }
+    } else if (currentView === VIEW_LEVELS.CHAT_LIST || currentView === VIEW_LEVELS.HIGHLIGHT_LIST) {
+        // breadcrumb의 캐릭터 이름만 체크
+        if (selectedCharacter !== null) {
+            const currentData = characters[selectedCharacter];
+            if (currentData) {
+                const cached = characterCache[selectedCharacter];
+                const currentHash = `${currentData.name}|${currentData.avatar}`;
+
+                if (cached !== currentHash) {
+                    characterCache[selectedCharacter] = currentHash;
+                    updateBreadcrumb();
+                }
+            }
+        }
+    }
+}
+
+// 캐릭터 정보 캐시 초기화
+function initCharacterCache() {
+    characterCache = {};
+    const charIds = Object.keys(settings.highlights);
+    for (const charId of charIds) {
+        const charData = characters[charId];
+        if (charData) {
+            characterCache[charId] = `${charData.name}|${charData.avatar}`;
+        }
+    }
+}
+
+// 캐릭터 정보 수정 시 리스트 업데이트 (이벤트 기반 - 작동하면 사용)
+function onCharacterEdited() {
+    // 패널이 열려있을 때 현재 뷰 업데이트
+    if ($('#highlighter-panel').hasClass('visible')) {
+        // 캐릭터 리스트 뷰면 리스트 업데이트
+        if (currentView === VIEW_LEVELS.CHARACTER_LIST) {
+            const $content = $('#highlighter-content');
+            renderCharacterList($content);
+            initCharacterCache(); // 캐시 갱신
+        }
+        // 채팅 리스트나 하이라이트 리스트 뷰면 breadcrumb만 업데이트 (캐릭터 이름 변경 반영)
+        else if (currentView === VIEW_LEVELS.CHAT_LIST || currentView === VIEW_LEVELS.HIGHLIGHT_LIST) {
+            updateBreadcrumb();
+            initCharacterCache(); // 캐시 갱신
+        }
+    }
+}
 
 function onChatDeleted(chatFile) {
     const charId = this_chid;
@@ -4378,6 +4472,7 @@ function showUpdateNotification(latestVersion) {
     eventSource.on(event_types.MESSAGE_SENT, restoreHighlightsInChat);
     eventSource.on(event_types.MESSAGE_UPDATED, restoreHighlightsInChat);
     eventSource.on(event_types.MESSAGE_SWIPED, restoreHighlightsInChat);
+    eventSource.on(event_types.CHARACTER_EDITED, onCharacterEdited);
 
     // 과거 메시지 로딩 감지를 위한 MutationObserver 설정
     setupChatObserver();
@@ -4391,6 +4486,12 @@ function showUpdateNotification(latestVersion) {
     previousChatLength = chat ? chat.length : 0;
 
     restoreHighlightsInChat();
+
+    // 캐릭터 정보 캐시 초기화
+    initCharacterCache();
+
+    // 캐릭터 정보 변경 감지 타이머 (2초마다 체크)
+    setInterval(checkCharacterChanges, 2000);
 
     // 항상 활성화 모드가 켜져 있으면 초기화 시 자동 활성화
     if (settings.alwaysHighlightMode) {
