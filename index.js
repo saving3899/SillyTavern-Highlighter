@@ -3010,7 +3010,7 @@ function exportHighlightsTXT(scope) {
 
         if (!chatData) return;
 
-        totalCharacters++;
+        let charHasHighlights = false; // 캐릭터에 형광펜이 있는지 체크
 
         let chatFiles = Object.keys(chatData);
 
@@ -3030,6 +3030,11 @@ function exportHighlightsTXT(scope) {
             let highlights = chatData[chatFile]?.highlights || [];
 
             if (highlights.length === 0) return;
+
+            if (!charHasHighlights) {
+                charHasHighlights = true;
+                totalCharacters++; // 이 캐릭터의 첫 형광펜 발견 시 카운트
+            }
 
             totalChats++;
 
