@@ -760,6 +760,11 @@
 
 /* 빈 상태 */
 .hl-empty {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
     padding: 40px 20px !important;
     text-align: center !important;
     color: #999999 !important;

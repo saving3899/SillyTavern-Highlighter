@@ -1118,7 +1118,7 @@ function renderCharacterList($container) {
         $container.html(`
             <div class="hl-empty">
                 <div class="hl-empty-icon"><i class="fa-solid fa-book-open"></i></div>
-                <div class="hl-empty-text">아직 저장된 하이라이트가 없습니다</div>
+                <div class="hl-empty-text">아직 저장된 형광펜이 없습니다</div>
             </div>
         `);
         return;
@@ -1387,7 +1387,7 @@ function renderChatList($container, characterId) {
         $container.html(`
             <div class="hl-empty">
                 <div class="hl-empty-icon"><i class="fa-solid fa-message"></i></div>
-                <div class="hl-empty-text">하이라이트가 없습니다</div>
+                <div class="hl-empty-text">형광펜이 없습니다</div>
             </div>
         `);
         return;
@@ -1467,7 +1467,7 @@ function renderHighlightList($container, characterId, chatFile, activeTab) {
         highlights;
 
     if (filtered.length === 0) {
-        const msg = activeTab === 'notes' ? '메모가 없습니다' : '하이라이트가 없습니다';
+        const msg = activeTab === 'notes' ? '메모가 없습니다' : '형광펜이 없습니다';
         $container.html(`
             <div class="hl-empty">
                 <div class="hl-empty-icon"><i class="fa-solid fa-highlighter"></i></div>
@@ -1915,7 +1915,7 @@ function createHighlight(text, color, range, el) {
         }
     } catch (e) {
         console.error('[SillyTavern-Highlighter] Failed to create highlight:', e);
-        toastr.error('하이라이트 생성 실패');
+        toastr.error('형광펜 생성 실패');
         return;
     }
 
@@ -1933,7 +1933,7 @@ function createHighlight(text, color, range, el) {
         textOffset: textOffset // 텍스트 시작 위치
     });
 
-    toastr.success('하이라이트 추가');
+    toastr.success('형광펜 추가');
 
     if ($('#highlighter-panel').hasClass('visible')) {
         renderView();
@@ -2264,12 +2264,12 @@ function deleteHighlight(hlId, charId, chatFile) {
         <div id="highlight-delete-modal" class="hl-modal-overlay">
             <div class="hl-modal ${getDarkModeClass()}">
                 <div class="hl-modal-header">
-                    <h3>하이라이트 삭제</h3>
+                    <h3>형광펜 삭제</h3>
                     <button class="hl-modal-close">&times;</button>
                 </div>
                 <div class="hl-modal-body">
                     <p style="margin: 0; padding: 10px; background: ${bgColor}; border-radius: 8px; line-height: 1.6; color: ${textColor} !important;">
-                        <strong style="color: ${textColor} !important;">삭제할 하이라이트:</strong><br>
+                        <strong style="color: ${textColor} !important;">삭제할 형광펜:</strong><br>
                         ${hl.text.substring(0, 100)}${hl.text.length > 100 ? '...' : ''}
                     </p>
                     ${hl.note ? `<p style="margin-top: 10px; color: ${noteColor} !important;"><strong style="color: ${textColor} !important;">메모:</strong> ${hl.note}</p>` : ''}
@@ -2328,13 +2328,13 @@ function deleteCharacterHighlights() {
         <div id="highlight-delete-all-modal" class="hl-modal-overlay">
             <div class="hl-modal ${getDarkModeClass()}">
                 <div class="hl-modal-header">
-                    <h3>캐릭터 하이라이트 전체 삭제</h3>
+                    <h3>캐릭터 형광펜 전체 삭제</h3>
                     <button class="hl-modal-close">&times;</button>
                 </div>
                 <div class="hl-modal-body">
                     <p style="margin: 0; padding: 15px; background: ${warningBg}; border-radius: 8px; line-height: 1.6; border: 1px solid ${warningBorder}; color: ${textColor} !important;">
                         <i class="fa-solid fa-exclamation-triangle" style="color: #e74c3c; margin-right: 8px;"></i>
-                        <strong style="color: #e74c3c !important;">${charName}</strong> 캐릭터의 모든 하이라이트 <strong style="color: #e74c3c !important;">${totalCount}개</strong>가 삭제됩니다.
+                        <strong style="color: #e74c3c !important;">${charName}</strong> 캐릭터의 모든 형광펜 <strong style="color: #e74c3c !important;">${totalCount}개</strong>가 삭제됩니다.
                     </p>
                     <p style="margin-top: 15px; color: ${secondaryColor} !important; text-align: center;">
                         이 작업은 되돌릴 수 없습니다.<br>정말로 삭제하시겠습니까?
@@ -2372,7 +2372,7 @@ function deleteCharacterHighlights() {
 
         navigateToCharacterList();
         $('#highlight-delete-all-modal').remove();
-        toastr.success('캐릭터 하이라이트 전체 삭제됨');
+        toastr.success('캐릭터 형광펜 전체 삭제됨');
     });
 
     $('.hl-modal-close, .hl-modal-cancel').on('click', function() {
@@ -2403,13 +2403,13 @@ function deleteChatHighlights() {
         <div id="highlight-delete-chat-modal" class="hl-modal-overlay">
             <div class="hl-modal ${getDarkModeClass()}">
                 <div class="hl-modal-header">
-                    <h3>채팅 하이라이트 전체 삭제</h3>
+                    <h3>채팅 형광펜 전체 삭제</h3>
                     <button class="hl-modal-close">&times;</button>
                 </div>
                 <div class="hl-modal-body">
                     <p style="margin: 0; padding: 15px; background: ${warningBg}; border-radius: 8px; line-height: 1.6; border: 1px solid ${warningBorder}; color: ${textColor} !important;">
                         <i class="fa-solid fa-exclamation-triangle" style="color: #e74c3c; margin-right: 8px;"></i>
-                        <strong style="color: #e74c3c !important;">${selectedChat}</strong> 채팅의 모든 하이라이트 <strong style="color: #e74c3c !important;">${highlightCount}개</strong>가 삭제됩니다.
+                        <strong style="color: #e74c3c !important;">${selectedChat}</strong> 채팅의 모든 형광펜 <strong style="color: #e74c3c !important;">${highlightCount}개</strong>가 삭제됩니다.
                     </p>
                     <p style="margin-top: 15px; color: ${secondaryColor} !important; text-align: center;">
                         이 작업은 되돌릴 수 없습니다.<br>정말로 삭제하시겠습니까?
@@ -2439,7 +2439,7 @@ function deleteChatHighlights() {
 
         navigateToChatList(selectedCharacter);
         $('#highlight-delete-chat-modal').remove();
-        toastr.success('채팅 하이라이트 전체 삭제됨');
+        toastr.success('채팅 형광펜 전체 삭제됨');
     });
 
     $('.hl-modal-close, .hl-modal-cancel').on('click', function() {
@@ -2551,7 +2551,7 @@ async function jumpToMessage(mesId, hlId) {
                         `"${charName}" 이름의 캐릭터가 ${sameNameChars.length}개 있어 자동 이동이 불가능합니다.<br><br>` +
                         '<strong>해결 방법:</strong><br>' +
                         '1. 수동으로 올바른 캐릭터를 선택하세요<br>' +
-                        '2. 하이라이트를 다시 클릭하면 올바른 채팅으로 이동합니다<br>' +
+                        '2. 형광펜을 다시 클릭하면 올바른 채팅으로 이동합니다<br>' +
                         '3. 또는 캐릭터 메모 기능을 사용하여 구분하세요',
                         '자동 이동 불가',
                         {
@@ -2618,7 +2618,7 @@ async function jumpToMessage(mesId, hlId) {
         } catch (error) {
             console.error('[SillyTavern-Highlighter] Chat switch error:', error);
             toastr.warning(
-                `다른 채팅의 하이라이트입니다.<br>` +
+                `다른 채팅의 형광펜입니다.<br>` +
                 `<strong>${targetChatFile}</strong> 채팅으로 수동으로 전환한 후<br>` +
                 `다시 시도해주세요.`,
                 '채팅 전환 실패',
@@ -2642,10 +2642,10 @@ function showDeletedChatAlert(type, charName, chatFile) {
 
     const title = type === 'character' ? '캐릭터가 삭제되었습니다' : '채팅이 삭제되었습니다';
     const message = type === 'character'
-        ? `<p>이 하이라이트가 속한 캐릭터 <strong>"${charName}"</strong>가 삭제되었거나 찾을 수 없습니다.</p>
-           <p>하이라이트는 독서노트 패널에 보관되어 있으며, 원하시면 삭제할 수 있습니다.</p>`
-        : `<p>이 하이라이트가 속한 채팅 <strong>"${chatFile}"</strong>이 삭제되었거나 찾을 수 없습니다.</p>
-           <p>하이라이트는 독서노트 패널에 보관되어 있으며, 원하시면 삭제할 수 있습니다.</p>`;
+        ? `<p>이 형광펜이 속한 캐릭터 <strong>"${charName}"</strong>가 삭제되었거나 찾을 수 없습니다.</p>
+           <p>형광펜은 독서노트 패널에 보관되어 있으며, 원하시면 삭제할 수 있습니다.</p>`
+        : `<p>이 형광펜이 속한 채팅 <strong>"${chatFile}"</strong>이 삭제되었거나 찾을 수 없습니다.</p>
+           <p>형광펜은 독서노트 패널에 보관되어 있으며, 원하시면 삭제할 수 있습니다.</p>`;
 
     const modal = `
         <div id="highlight-deleted-alert-modal" class="hl-modal-overlay">
@@ -2711,9 +2711,9 @@ async function jumpToMessageInternal(mesId, hlId) {
                 if (!normalizedMesText.includes(normalizedHlText)) {
                     // 메시지가 변경되었거나 삭제됨
                     toastr.warning(
-                        '이 하이라이트가 저장된 메시지가 삭제되었거나 내용이 변경되었습니다.<br>' +
-                        '하이라이트를 삭제하는 것을 권장합니다.',
-                        '하이라이트 불일치',
+                        '이 형광펜이 저장된 메시지가 삭제되었거나 내용이 변경되었습니다.<br>' +
+                        '형광펜을 삭제하는 것을 권장합니다.',
+                        '형광펜 불일치',
                         {
                             timeOut: 8000,
                             extendedTimeOut: 3000,
@@ -2788,9 +2788,9 @@ async function jumpToMessageInternal(mesId, hlId) {
                             // 메시지에 하이라이트 텍스트가 존재하는지 확인
                             if (!normalizedMesText.includes(normalizedHlText)) {
                                 toastr.warning(
-                                    '이 하이라이트가 저장된 메시지가 삭제되었거나 내용이 변경되었습니다.<br>' +
-                                    '하이라이트를 삭제하는 것을 권장합니다.',
-                                    '하이라이트 불일치',
+                                    '이 형광펜이 저장된 메시지가 삭제되었거나 내용이 변경되었습니다.<br>' +
+                                    '형광펜을 삭제하는 것을 권장합니다.',
+                                    '형광펜 불일치',
                                     {
                                         timeOut: 8000,
                                         extendedTimeOut: 3000,
@@ -2836,7 +2836,7 @@ function showBackupModal() {
         <div id="highlight-backup-modal" class="hl-modal-overlay">
             <div class="hl-modal ${getDarkModeClass()}">
                 <div class="hl-modal-header">
-                    <h3>하이라이트 백업</h3>
+                    <h3>형광펜 백업</h3>
                     <button class="hl-modal-close">&times;</button>
                 </div>
                 <div class="hl-modal-body">
@@ -2948,7 +2948,7 @@ function exportHighlightsTXT(scope) {
 
     // 헤더
     content += '===========================================\n';
-    content += '독서노트 하이라이트 모음\n';
+    content += '독서노트 형광펜 모음\n';
     content += `생성일: ${dateStr}\n`;
 
     // 데이터 수집
@@ -3060,7 +3060,7 @@ function exportHighlightsTXT(scope) {
 
     // 푸터
     content += '===========================================\n';
-    content += `총 하이라이트: ${totalHighlights}개\n`;
+    content += `총 형광펜: ${totalHighlights}개\n`;
     content += `총 캐릭터: ${totalCharacters}개\n`;
     content += `총 채팅: ${totalChats}개\n`;
     content += '===========================================\n';
@@ -3387,7 +3387,7 @@ function restoreHighlightsInChat() {
                     console.log(`[SillyTavern-Highlighter] Auto-copied ${copiedHighlights.length} highlight(s) from checkpoint/branch: ${sourceChatFile}`);
 
                     // 사용자에게 알림
-                    toastr.info(`${copiedHighlights.length}개의 하이라이트를 자동으로 복사했습니다`, '체크포인트/분기 감지', { timeOut: 3000 });
+                    toastr.info(`${copiedHighlights.length}개의 형광펜을 자동으로 복사했습니다`, '체크포인트/분기 감지', { timeOut: 3000 });
                 }
             }
         } catch (error) {
@@ -3662,7 +3662,7 @@ function onChatChange() {
                         // 저장
                         saveSettingsDebounced();
 
-                        toastr.success('하이라이트가 변경된 채팅 제목과 동기화되었습니다');
+                        toastr.success('형광펜이 변경된 채팅 제목과 동기화되었습니다');
                     }
                 }
             }
@@ -3767,11 +3767,11 @@ function onChatDeleted(chatFile) {
     if (settings.deleteMode === 'delete') {
         if (settings.highlights[charId]?.[chatFile]) {
             delete settings.highlights[charId][chatFile];
-            toastr.info('하이라이트 삭제됨');
+            toastr.info('형광펜 삭제됨');
             saveSettingsDebounced();
         }
     } else {
-        toastr.info('하이라이트 보관됨');
+        toastr.info('형광펜 보관됨');
     }
 }
 
@@ -3899,7 +3899,7 @@ function showBreadcrumbMoreMenu(e) {
             <div id="hl-breadcrumb-more-menu" class="hl-more-menu ${getDarkModeClass()}">
                 <button class="hl-more-menu-item" data-action="delete-chat">
                     <i class="fa-solid fa-trash"></i>
-                    <span>이 채팅의 모든 하이라이트 삭제</span>
+                    <span>이 채팅의 모든 형광펜 삭제</span>
                 </button>
             </div>
         `;
@@ -3909,7 +3909,7 @@ function showBreadcrumbMoreMenu(e) {
             <div id="hl-breadcrumb-more-menu" class="hl-more-menu ${getDarkModeClass()}">
                 <button class="hl-more-menu-item" data-action="delete-character">
                     <i class="fa-solid fa-trash"></i>
-                    <span>이 캐릭터의 모든 하이라이트 삭제</span>
+                    <span>이 캐릭터의 모든 형광펜 삭제</span>
                 </button>
             </div>
         `;
