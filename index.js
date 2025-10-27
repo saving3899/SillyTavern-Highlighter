@@ -422,6 +422,8 @@ const DEFAULT_SETTINGS = {
     alwaysHighlightMode: false, // 형광펜 모드 항상 활성화
     panelPosition: null, // { top, left } 저장
     highlights: {},
+    characterMemos: {}, // 캐릭터별 메모 { charId: "메모 내용" }
+    chatMemos: {}, // 채팅별 메모 { "charId_chatFile": "메모 내용" }
     customColors: null, // 커스텀 색상 배열
     sortOptions: {
         characters: 'modified', // 'modified', 'name'
@@ -457,6 +459,8 @@ function validateAndRepairSettings(data) {
 
         // 필수 필드 존재 확인 (없으면 추가, 기존 값은 유지)
         if (!data.highlights) data.highlights = {};
+        if (!data.characterMemos) data.characterMemos = {};
+        if (!data.chatMemos) data.chatMemos = {};
         if (!data.deleteMode) data.deleteMode = 'keep';
         if (data.darkMode === undefined) data.darkMode = false;
         if (!data.buttonPosition) data.buttonPosition = 'bottom-right';
@@ -889,12 +893,12 @@ function updateBreadcrumb() {
         // 채팅 이름만 표시 (캐릭터 이름 제거)
         html += ` <span class="breadcrumb-current">${selectedChat}</span>`;
 
-        // 정렬 드롭다운 추가
+        // 정렬 버튼 추가
+        const highlightsSortLabel = settings.sortOptions.highlights === 'message' ? '채팅순' : '최근 생성순';
         html += `
-            <select class="hl-sort-select" id="hl-sort-highlights">
-                <option value="created" ${settings.sortOptions.highlights === 'created' ? 'selected' : ''}>최근 생성순</option>
-                <option value="message" ${settings.sortOptions.highlights === 'message' ? 'selected' : ''}>채팅순</option>
-            </select>
+            <button class="hl-sort-btn" data-sort-type="highlights">
+                ${highlightsSortLabel}
+            </button>
         `;
 
         // More 메뉴 버튼 추가 (하이라이트 목록일 때만)
@@ -909,12 +913,12 @@ function updateBreadcrumb() {
         const charName = getCharacterName(selectedCharacter);
         html += ` <span class="breadcrumb-current">${charName}</span>`;
 
-        // 정렬 드롭다운 추가
+        // 정렬 버튼 추가
+        const chatsSortLabel = settings.sortOptions.chats === 'name' ? '이름순' : '최근 수정순';
         html += `
-            <select class="hl-sort-select" id="hl-sort-chats">
-                <option value="modified" ${settings.sortOptions.chats === 'modified' ? 'selected' : ''}>최근 수정순</option>
-                <option value="name" ${settings.sortOptions.chats === 'name' ? 'selected' : ''}>이름순</option>
-            </select>
+            <button class="hl-sort-btn" data-sort-type="chats">
+                ${chatsSortLabel}
+            </button>
         `;
 
         // More 메뉴 버튼 추가 (채팅 목록일 때만)
@@ -927,12 +931,12 @@ function updateBreadcrumb() {
         // 캐릭터 목록 (최상위)
         html = '<span class="breadcrumb-current">모든 캐릭터</span>';
 
-        // 정렬 드롭다운 추가
+        // 정렬 버튼 추가
+        const charactersSortLabel = settings.sortOptions.characters === 'name' ? '이름순' : '최근 수정순';
         html += `
-            <select class="hl-sort-select" id="hl-sort-characters">
-                <option value="modified" ${settings.sortOptions.characters === 'modified' ? 'selected' : ''}>최근 수정순</option>
-                <option value="name" ${settings.sortOptions.characters === 'name' ? 'selected' : ''}>이름순</option>
-            </select>
+            <button class="hl-sort-btn" data-sort-type="characters">
+                ${charactersSortLabel}
+            </button>
         `;
     }
 
@@ -943,24 +947,83 @@ function updateBreadcrumb() {
     $('[data-action="back-to-chat"]').off('click').on('click', () => navigateToChatList(selectedCharacter));
     $('#hl-breadcrumb-more-btn').off('click').on('click', showBreadcrumbMoreMenu);
 
-    // 정렬 옵션 변경 이벤트
-    $('#hl-sort-highlights').off('change').on('change', function() {
-        settings.sortOptions.highlights = $(this).val();
-        saveSettingsDebounced();
-        renderView();
+    // 정렬 버튼 클릭 이벤트
+    $('.hl-sort-btn').off('click').on('click', showSortMenu);
+}
+
+function showSortMenu(e) {
+    e.stopPropagation();
+
+    // 기존 메뉴 제거
+    $('.hl-sort-menu').remove();
+
+    const $btn = $(e.currentTarget);
+    const sortType = $btn.data('sortType');
+    const rect = $btn[0].getBoundingClientRect();
+
+    let options = [];
+    let currentValue = '';
+
+    if (sortType === 'highlights') {
+        options = [
+            { value: 'created', label: '최근 생성순' },
+            { value: 'message', label: '채팅순' }
+        ];
+        currentValue = settings.sortOptions.highlights;
+    } else if (sortType === 'chats') {
+        options = [
+            { value: 'modified', label: '최근 수정순' },
+            { value: 'name', label: '이름순' }
+        ];
+        currentValue = settings.sortOptions.chats;
+    } else if (sortType === 'characters') {
+        options = [
+            { value: 'modified', label: '최근 수정순' },
+            { value: 'name', label: '이름순' }
+        ];
+        currentValue = settings.sortOptions.characters;
+    }
+
+    const menuHtml = options.map(opt => `
+        <button class="hl-sort-menu-item ${opt.value === currentValue ? 'active' : ''}" data-value="${opt.value}">
+            ${opt.label}
+            ${opt.value === currentValue ? '<i class="fa-solid fa-check"></i>' : ''}
+        </button>
+    `).join('');
+
+    const menu = $(`
+        <div class="hl-sort-menu ${getDarkModeClass()}" data-sort-type="${sortType}">
+            ${menuHtml}
+        </div>
+    `);
+
+    $('body').append(menu);
+
+    // 메뉴 위치 설정 (버튼 오른쪽 끝에 맞춤)
+    menu.css({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right
     });
 
-    $('#hl-sort-chats').off('change').on('change', function() {
-        settings.sortOptions.chats = $(this).val();
+    // 메뉴 아이템 클릭
+    menu.find('.hl-sort-menu-item').on('click', function() {
+        const value = $(this).data('value');
+
+        if (sortType === 'highlights') {
+            settings.sortOptions.highlights = value;
+        } else if (sortType === 'chats') {
+            settings.sortOptions.chats = value;
+        } else if (sortType === 'characters') {
+            settings.sortOptions.characters = value;
+        }
+
         saveSettingsDebounced();
         renderView();
+        menu.remove();
     });
 
-    $('#hl-sort-characters').off('change').on('change', function() {
-        settings.sortOptions.characters = $(this).val();
-        saveSettingsDebounced();
-        renderView();
-    });
+    // 외부 클릭 시 메뉴 닫기
+    $(document).one('click', () => menu.remove());
 }
 
 function renderView() {
@@ -1055,23 +1118,225 @@ function renderCharacterList($container) {
         const avatar = charData?.avatar ?
             `/thumbnail?type=avatar&file=${charData.avatar}` :
             '/img/five.png';
+        const memo = settings.characterMemos?.[charId] || '';
+        const memoDisplay = memo ? `<span class="hl-memo">${memo}</span>` : '';
 
         const item = `
             <div class="hl-list-item" data-char-id="${charId}">
                 <img src="${avatar}" class="hl-icon" onerror="this.src='/img/five.png'">
                 <div class="hl-info">
                     <div class="hl-name">${charName}</div>
-                    <div class="hl-count">${totalHighlights}개</div>
+                    <div class="hl-count-row">
+                        <span class="hl-count">${totalHighlights}개</span>
+                        ${memoDisplay}
+                    </div>
                 </div>
+                <button class="hl-memo-edit-btn" data-char-id="${charId}" title="메모 편집">
+                    <i class="fa-solid fa-pencil"></i>
+                </button>
                 <i class="fa-solid fa-chevron-right hl-chevron"></i>
             </div>
         `;
         $container.append(item);
     });
 
-    // 클릭 이벤트 바인딩 (중복 방지)
-    $('.hl-list-item').off('click').on('click', function () {
+    // 클릭 이벤트 바인딩 (중복 방지) - 컨테이너 내 아이템만 선택
+    $container.find('.hl-list-item').off('click').on('click', function (e) {
+        // 메모 편집 버튼 클릭 시 이벤트 전파 방지
+        if ($(e.target).closest('.hl-memo-edit-btn').length > 0) {
+            return;
+        }
         navigateToChatList($(this).data('charId'));
+    });
+
+    // 메모 편집 버튼 이벤트 바인딩
+    $container.find('.hl-memo-edit-btn').off('click').on('click', function (e) {
+        e.stopPropagation();
+        const charId = $(this).data('charId');
+        openCharacterMemoEditor(charId);
+    });
+}
+
+function openCharacterMemoEditor(charId) {
+    $('#character-memo-modal').remove();
+
+    const charName = getCharacterName(charId);
+    const currentMemo = settings.characterMemos?.[charId] || '';
+
+    const modal = `
+        <div id="character-memo-modal" class="hl-modal-overlay">
+            <div class="hl-modal ${getDarkModeClass()}">
+                <div class="hl-modal-header">
+                    <h3><i class="fa-solid fa-pencil"></i> 캐릭터 메모</h3>
+                    <button class="hl-modal-close"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div class="hl-modal-body">
+                    <div class="hl-memo-modal-info">
+                        <span>${charName}</span>
+                    </div>
+                    <textarea class="hl-note-textarea" placeholder="이 캐릭터를 구분하기 위한 메모를 입력하세요...
+예: 페르소나 A, 친구 설정, 연인 루트 등">${currentMemo}</textarea>
+                    <small style="display: block; margin-top: 8px; color: #777;">
+                        같은 이름의 캐릭터를 구분하는 데 도움이 됩니다.
+                    </small>
+                </div>
+                <div class="hl-modal-footer">
+                    <button class="hl-modal-btn hl-modal-cancel">취소</button>
+                    ${currentMemo ? '<button class="hl-modal-btn hl-modal-delete">삭제</button>' : ''}
+                    <button class="hl-modal-btn hl-modal-save">저장</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    $('body').append(modal);
+
+    const $textarea = $('.hl-note-textarea');
+    $textarea.focus();
+
+    // 저장 버튼
+    $('.hl-modal-save').on('click', function () {
+        const newMemo = $textarea.val().trim();
+        if (!settings.characterMemos) settings.characterMemos = {};
+
+        if (newMemo) {
+            settings.characterMemos[charId] = newMemo;
+        } else {
+            delete settings.characterMemos[charId];
+        }
+
+        saveSettingsDebounced();
+        renderView();
+        $('#character-memo-modal').remove();
+        toastr.success('메모 저장됨');
+    });
+
+    // 삭제 버튼
+    $('.hl-modal-delete').on('click', function () {
+        if (confirm('메모를 삭제하시겠습니까?')) {
+            if (settings.characterMemos) {
+                delete settings.characterMemos[charId];
+            }
+            saveSettingsDebounced();
+            renderView();
+            $('#character-memo-modal').remove();
+            toastr.info('메모 삭제됨');
+        }
+    });
+
+    // 닫기/취소 버튼
+    const closeMemoModal = function () {
+        const newMemo = $textarea.val().trim();
+        const hasChanges = newMemo !== currentMemo;
+
+        if (hasChanges && newMemo.length > 0) {
+            if (confirm('메모를 취소하시겠습니까?\n저장되지 않은 변경사항이 사라집니다.')) {
+                $('#character-memo-modal').remove();
+            }
+        } else {
+            $('#character-memo-modal').remove();
+        }
+    };
+
+    $('.hl-modal-close, .hl-modal-cancel').on('click', closeMemoModal);
+
+    // 모달 밖 클릭 시 닫기
+    $('.hl-modal-overlay').on('click', function (e) {
+        if (e.target === this) {
+            closeMemoModal();
+        }
+    });
+}
+
+function openChatMemoEditor(charId, chatFile) {
+    $('#chat-memo-modal').remove();
+
+    const charName = getCharacterName(charId);
+    const memoKey = `${charId}_${chatFile}`;
+    const currentMemo = settings.chatMemos?.[memoKey] || '';
+
+    const modal = `
+        <div id="chat-memo-modal" class="hl-modal-overlay">
+            <div class="hl-modal ${getDarkModeClass()}">
+                <div class="hl-modal-header">
+                    <h3><i class="fa-solid fa-pencil"></i> 채팅 메모</h3>
+                    <button class="hl-modal-close"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div class="hl-modal-body">
+                    <div class="hl-memo-modal-info">
+                        <span>${charName}</span> <span style="color: #999;">&gt;</span> <span>${chatFile}</span>
+                    </div>
+                    <textarea class="hl-note-textarea" placeholder="이 채팅을 구분하기 위한 메모를 입력하세요...
+예: 1차 대화, 친구 루트, 연인 루트 등">${currentMemo}</textarea>
+                    <small style="display: block; margin-top: 8px; color: #777;">
+                        같은 캐릭터의 여러 채팅을 구분하는 데 도움이 됩니다.
+                    </small>
+                </div>
+                <div class="hl-modal-footer">
+                    <button class="hl-modal-btn hl-modal-cancel">취소</button>
+                    ${currentMemo ? '<button class="hl-modal-btn hl-modal-delete">삭제</button>' : ''}
+                    <button class="hl-modal-btn hl-modal-save">저장</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    $('body').append(modal);
+
+    const $textarea = $('.hl-note-textarea');
+    $textarea.focus();
+
+    // 저장 버튼
+    $('.hl-modal-save').on('click', function () {
+        const newMemo = $textarea.val().trim();
+        if (!settings.chatMemos) settings.chatMemos = {};
+
+        if (newMemo) {
+            settings.chatMemos[memoKey] = newMemo;
+        } else {
+            delete settings.chatMemos[memoKey];
+        }
+
+        saveSettingsDebounced();
+        renderView();
+        $('#chat-memo-modal').remove();
+        toastr.success('메모 저장됨');
+    });
+
+    // 삭제 버튼
+    $('.hl-modal-delete').on('click', function () {
+        if (confirm('메모를 삭제하시겠습니까?')) {
+            if (settings.chatMemos) {
+                delete settings.chatMemos[memoKey];
+            }
+            saveSettingsDebounced();
+            renderView();
+            $('#chat-memo-modal').remove();
+            toastr.info('메모 삭제됨');
+        }
+    });
+
+    // 닫기/취소 버튼
+    const closeChatMemoModal = function () {
+        const newMemo = $textarea.val().trim();
+        const hasChanges = newMemo !== currentMemo;
+
+        if (hasChanges && newMemo.length > 0) {
+            if (confirm('메모를 취소하시겠습니까?\n저장되지 않은 변경사항이 사라집니다.')) {
+                $('#chat-memo-modal').remove();
+            }
+        } else {
+            $('#chat-memo-modal').remove();
+        }
+    };
+
+    $('.hl-modal-close, .hl-modal-cancel').on('click', closeChatMemoModal);
+
+    // 모달 밖 클릭 시 닫기
+    $('.hl-modal-overlay').on('click', function (e) {
+        if (e.target === this) {
+            closeChatMemoModal();
+        }
     });
 }
 
@@ -1108,6 +1373,9 @@ function renderChatList($container, characterId) {
         const count = chatData.highlights.length;
         const last = chatData.highlights[chatData.highlights.length - 1];
         const preview = last ? last.text.substring(0, 50) + (last.text.length > 50 ? '...' : '') : '';
+        const memoKey = `${characterId}_${chatFile}`;
+        const memo = settings.chatMemos?.[memoKey] || '';
+        const memoDisplay = memo ? `<span class="hl-memo">${memo}</span>` : '';
 
         const item = `
             <div class="hl-list-item" data-chat-file="${chatFile}">
@@ -1115,18 +1383,37 @@ function renderChatList($container, characterId) {
                     <i class="fa-solid fa-message"></i>
                 </div>
                 <div class="hl-info">
-                    <div class="hl-name">${chatFile} (${count})</div>
+                    <div class="hl-name">${chatFile}</div>
+                    <div class="hl-count-row">
+                        <span class="hl-count">${count}개</span>
+                        ${memoDisplay}
+                    </div>
                     <div class="hl-preview">${preview}</div>
                 </div>
+                <button class="hl-memo-edit-btn" data-char-id="${characterId}" data-chat-file="${chatFile}" title="메모 편집">
+                    <i class="fa-solid fa-pencil"></i>
+                </button>
                 <i class="fa-solid fa-chevron-right hl-chevron"></i>
             </div>
         `;
         $container.append(item);
     });
 
-    // 클릭 이벤트 바인딩 (중복 방지)
-    $('.hl-list-item').off('click').on('click', function () {
+    // 클릭 이벤트 바인딩 (중복 방지) - 컨테이너 내 아이템만 선택
+    $container.find('.hl-list-item').off('click').on('click', function (e) {
+        // 메모 편집 버튼 클릭 시 이벤트 전파 방지
+        if ($(e.target).closest('.hl-memo-edit-btn').length > 0) {
+            return;
+        }
         navigateToHighlightList(selectedCharacter, $(this).data('chatFile'));
+    });
+
+    // 메모 편집 버튼 이벤트 바인딩
+    $container.find('.hl-memo-edit-btn').off('click').on('click', function (e) {
+        e.stopPropagation();
+        const charId = $(this).data('charId');
+        const chatFile = $(this).data('chatFile');
+        openChatMemoEditor(charId, chatFile);
     });
 }
 
@@ -1178,7 +1465,7 @@ function renderHighlightList($container, characterId, chatFile, activeTab) {
             <div class="hl-highlight-item" style="--highlight-color: ${hl.color}" data-mes-id="${hl.mesId}" data-hl-id="${hl.id}">
                 <div class="hl-content">
                     <div class="hl-text">${hl.text}</div>
-                    ${hl.note ? `<div class="hl-note"><i class="fa-solid fa-note-sticky"></i> ${hl.note}</div>` : ''}
+                    ${hl.note ? `<div class="hl-note"><i class="fa-solid fa-note-sticky"></i><span>${hl.note}</span></div>` : ''}
                     <div class="hl-meta">
                         <span>${label}</span>
                         <span>|</span>
@@ -1193,15 +1480,11 @@ function renderHighlightList($container, characterId, chatFile, activeTab) {
         $container.append(item);
     });
 
-    // 아이템 클릭 시 이동 (more 버튼 제외) - 중복 방지
-    $('.hl-highlight-item').off('click').on('click', function(e) {
-        // more 버튼 클릭 시에는 무시
-        if ($(e.target).closest('.hl-more-btn').length > 0) {
-            return;
-        }
-
-        const mesId = $(this).data('mesId');
-        const hlId = $(this).data('hlId');
+    // 하이라이트 텍스트 클릭 시 이동 - 중복 방지
+    $('.hl-highlight-item .hl-text').off('click').on('click', function(e) {
+        const $item = $(this).closest('.hl-highlight-item');
+        const mesId = $item.data('mesId');
+        const hlId = $item.data('hlId');
         jumpToMessage(mesId, hlId);
     });
 
@@ -2123,7 +2406,7 @@ async function jumpToMessage(mesId, hlId) {
     }
 
     // 캐릭터가 다른 경우 캐릭터 변경
-    if (targetCharId !== currentCharId && targetCharId !== null) {
+    if (targetCharIdStr !== currentCharIdStr && targetCharId !== null) {
         const charName = getCharacterName(targetCharId);
 
         // 캐릭터가 삭제되었는지 확인
