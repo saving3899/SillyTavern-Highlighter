@@ -459,6 +459,8 @@ let dragOffsetY = 0;
 let previousChatFile = null; // 채팅 제목 변경 감지용
 let previousCharId = null; // 캐릭터 변경 감지용
 let previousChatLength = null; // 채팅 메시지 개수 (같은 채팅인지 확인용)
+let previousChatChangeTime = null; // 채팅 변경 시간 (제목 변경과 채팅 이동 구분용)
+let previousChatMessages = null; // 첫/마지막 메시지 저장 (제목 변경 검증용)
 
 // ====================================
 // 데이터 안정성 및 마이그레이션
@@ -1410,8 +1412,11 @@ function renderChatList($container, characterId) {
     chatFiles.forEach(chatFile => {
         const chatData = chats[chatFile];
         const count = chatData.highlights.length;
-        const last = chatData.highlights[chatData.highlights.length - 1];
-        const preview = last ? last.text.substring(0, 50) + (last.text.length > 50 ? '...' : '') : '';
+        // timestamp 기준 최신 형광펜 찾기 (배열 순서가 아닌 실제 생성 시간 기준)
+        const latest = chatData.highlights.reduce((prev, current) => {
+            return (current.timestamp > prev.timestamp) ? current : prev;
+        });
+        const preview = latest ? latest.text.substring(0, 50) + (latest.text.length > 50 ? '...' : '') : '';
         const memoKey = `${characterId}_${chatFile}`;
         const memo = settings.chatMemos?.[memoKey] || '';
         const memoDisplay = memo ? `<span class="hl-memo">${memo}</span>` : '';
@@ -1585,50 +1590,68 @@ function enableHighlightMode() {
         const delay = isTouchEvent ? 150 : 0;
 
         const processSelection = () => {
-            const sel = window.getSelection();
-            let text = sel.toString();
+            try {
+                const sel = window.getSelection();
 
-            // 앞뒤 빈줄 제거
-            const originalText = text;
-            text = text.trim();
+                // ⭐ 안전장치: range가 없는 경우 처리
+                if (!sel || sel.rangeCount === 0) {
+                    return;
+                }
 
-            // 선택된 텍스트가 없으면 종료 (단순 클릭)
-            if (text.length === 0) {
-                // 하이라이트 요소 클릭 시 컨텍스트 메뉴는 별도 이벤트에서 처리
-                return;
-            }
+                let text = sel.toString();
 
-            // ⭐ 텍스트가 너무 짧으면(1자 이하) 무시 (오터치 방지)
-            if (text.length < 2 && isTouchEvent) {
-                return;
-            }
+                // 앞뒤 빈줄 제거
+                const originalText = text;
+                text = text.trim();
 
-            // 선택된 텍스트가 있으면 색상 메뉴 표시 (하이라이트 영역 포함해도 OK)
+                // 선택된 텍스트가 없으면 종료 (단순 클릭)
+                if (text.length === 0) {
+                    // 하이라이트 요소 클릭 시 컨텍스트 메뉴는 별도 이벤트에서 처리
+                    return;
+                }
 
-            const range = sel.getRangeAt(0);
+                // ⭐ 텍스트가 너무 짧으면(1자 이하) 무시 (오터치 방지)
+                if (text.length < 2 && isTouchEvent) {
+                    return;
+                }
 
-            // 터치 이벤트와 마우스 이벤트 모두 지원
-            const pageX = e.pageX || (e.originalEvent?.changedTouches?.[0]?.pageX) || e.clientX;
-            const pageY = e.pageY || (e.originalEvent?.changedTouches?.[0]?.pageY) || e.clientY;
+                // 선택된 텍스트가 있으면 색상 메뉴 표시 (하이라이트 영역 포함해도 OK)
 
-            // trim으로 인해 범위가 변경된 경우 range 조정
-            if (originalText !== text) {
-                const startOffset = originalText.indexOf(text);
-                const newRange = document.createRange();
+                const range = sel.getRangeAt(0);
 
-                try {
-                    const startNode = range.startContainer;
-                    const endNode = range.endContainer;
+                // 터치 이벤트와 마우스 이벤트 모두 지원
+                // ⭐ 안전장치: 좌표가 없는 경우 기본값 설정
+                let pageX = e.pageX || (e.originalEvent?.changedTouches?.[0]?.pageX) || e.clientX;
+                let pageY = e.pageY || (e.originalEvent?.changedTouches?.[0]?.pageY) || e.clientY;
 
-                    newRange.setStart(startNode, range.startOffset + startOffset);
-                    newRange.setEnd(endNode, range.startOffset + startOffset + text.length);
+                // 좌표가 여전히 없으면 range 중앙 사용
+                if (!pageX || !pageY) {
+                    const rangeRect = range.getBoundingClientRect();
+                    pageX = rangeRect.left + rangeRect.width / 2 + window.scrollX;
+                    pageY = rangeRect.bottom + window.scrollY;
+                }
 
-                    showColorMenu(pageX, pageY, text, newRange, element);
-                } catch (err) {
+                // trim으로 인해 범위가 변경된 경우 range 조정
+                if (originalText !== text) {
+                    const startOffset = originalText.indexOf(text);
+                    const newRange = document.createRange();
+
+                    try {
+                        const startNode = range.startContainer;
+                        const endNode = range.endContainer;
+
+                        newRange.setStart(startNode, range.startOffset + startOffset);
+                        newRange.setEnd(endNode, range.startOffset + startOffset + text.length);
+
+                        showColorMenu(pageX, pageY, text, newRange, element);
+                    } catch (err) {
+                        showColorMenu(pageX, pageY, text, range, element);
+                    }
+                } else {
                     showColorMenu(pageX, pageY, text, range, element);
                 }
-            } else {
-                showColorMenu(pageX, pageY, text, range, element);
+            } catch (error) {
+                console.warn('[SillyTavern-Highlighter] Error processing selection:', error);
             }
         };
 
@@ -1667,28 +1690,11 @@ function showColorMenu(x, y, text, range, el) {
     // 선택된 텍스트의 위치 가져오기
     const rangeRect = range.getBoundingClientRect();
 
-    // 커서 위치를 기본으로 사용하되, 선택된 텍스트 근처로 제한
+    // 커서 위치를 그대로 사용 (X축)
     let menuX = x;
     let menuY = y;
 
-    const maxDistance = 50; // 최대 거리 (px)
-
-    // 커서가 텍스트에서 너무 멀면 텍스트 근처로 이동
-    const textCenterX = rangeRect.left + rangeRect.width / 2 + window.scrollX;
-    const textCenterY = rangeRect.top + rangeRect.height / 2 + window.scrollY;
-
-    const distanceX = Math.abs(menuX - textCenterX);
-    const distanceY = Math.abs(menuY - textCenterY);
-
-    if (distanceX > maxDistance) {
-        menuX = menuX > textCenterX ? textCenterX + maxDistance : textCenterX - maxDistance;
-    }
-
-    if (distanceY > maxDistance) {
-        menuY = menuY > textCenterY ? textCenterY + maxDistance : textCenterY - maxDistance;
-    }
-
-    // Y 위치는 텍스트 바로 아래로 조정 (텍스트 가리지 않도록)
+    // Y축: 텍스트 바로 아래로 조정 (텍스트 가리지 않도록)
     menuY = rangeRect.bottom + window.scrollY + 5;
 
     const menu = `
@@ -1701,33 +1707,40 @@ function showColorMenu(x, y, text, range, el) {
 
     // 화면 밖으로 나가지 않도록 위치 조정
     const $menu = $('#highlight-color-menu');
-    const rect = $menu[0].getBoundingClientRect();
+    const rect = $menu[0].getBoundingClientRect(); // viewport 좌표계
 
-    let adjustedX = menuX;
-    let adjustedY = menuY;
+    // ⭐ page 좌표계를 viewport 좌표계로 변환
+    let viewportX = menuX - window.scrollX;
+    let viewportY = menuY - window.scrollY;
 
     const margin = window.innerWidth <= 768 ? 20 : 10;
     const bottomMargin = window.innerWidth <= 768 ? 80 : 60; // 하단은 더 넓게
 
-    // 오른쪽 경계 확인
-    if (rect.right > window.innerWidth) {
-        adjustedX = window.innerWidth - rect.width - margin;
+    // 오른쪽 경계 확인 (viewport 좌표계)
+    if (viewportX + rect.width > window.innerWidth - margin) {
+        viewportX = window.innerWidth - rect.width - margin;
     }
 
-    // 왼쪽 경계 확인
-    if (adjustedX < margin) {
-        adjustedX = margin;
+    // 왼쪽 경계 확인 (viewport 좌표계)
+    if (viewportX < margin) {
+        viewportX = margin;
     }
 
-    // 하단 경계 확인 - 텍스트 위쪽으로 이동
-    if (rect.bottom > window.innerHeight - bottomMargin) {
-        adjustedY = rangeRect.top + window.scrollY - rect.height - 5;
+    // 하단 경계 확인 - 텍스트 위쪽으로 이동 (viewport 좌표계)
+    const viewportTextTop = rangeRect.top; // rangeRect는 이미 viewport 좌표계
+
+    if (viewportY + rect.height > window.innerHeight - bottomMargin) {
+        viewportY = viewportTextTop - rect.height - 5;
     }
 
-    // 상단 경계 확인
-    if (adjustedY < window.scrollY + margin) {
-        adjustedY = window.scrollY + margin;
+    // 상단 경계 확인 (viewport 좌표계)
+    if (viewportY < margin) {
+        viewportY = margin;
     }
+
+    // ⭐ viewport 좌표계를 다시 page 좌표계로 변환하여 적용
+    const adjustedX = viewportX + window.scrollX;
+    const adjustedY = viewportY + window.scrollY;
 
     $menu.css({ left: adjustedX + 'px', top: adjustedY + 'px' });
 
@@ -3193,208 +3206,14 @@ function deepMerge(target, source) {
     return result;
 }
 
-// ⭐⭐ 메시지 내용 기반 체크포인트/분기 감지 (경량화, mesId 독립적)
-function detectCheckpointOrBranch(currentChat, otherChatFile, charId) {
-    try {
-        console.log(`[SillyTavern-Highlighter] 🔍 Analyzing "${otherChatFile}"...`);
-
-        if (currentChat.length < 3) {
-            console.log(`[SillyTavern-Highlighter] ❌ Too few messages (${currentChat.length})`);
-            return null;
-        }
-
-        // 다른 채팅과 비교할 필요가 있는지 빠른 체크
-        const otherHighlights = settings.highlights[charId]?.[otherChatFile]?.highlights || [];
-        if (otherHighlights.length === 0) {
-            console.log(`[SillyTavern-Highlighter] ❌ No highlights in "${otherChatFile}"`);
-            return null;
-        }
-
-        console.log(`[SillyTavern-Highlighter] Found ${otherHighlights.length} highlight(s) in "${otherChatFile}"`);
-
-        // ⭐⭐ 전체 메시지를 비교 (범위 제한 없음)
-        // 현재 채팅의 모든 메시지 텍스트 수집 (HTML 태그 제거 후 정규화)
-        const currentMessages = currentChat.map(m => {
-            let text = m.mes || '';
-
-            // ⭐ HTML 태그 제거 (하이라이트 생성 시와 동일한 방식)
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = text;
-            text = tempDiv.textContent || tempDiv.innerText || '';
-
-            return text.replace(/\s+/g, ' ').trim();
-        }).filter(t => t.length > 10); // 너무 짧은 메시지는 제외
-
-        if (currentMessages.length === 0) {
-            console.log(`[SillyTavern-Highlighter] ❌ No valid messages to compare`);
-            return null;
-        }
-
-        console.log(`[SillyTavern-Highlighter] Comparing ${currentMessages.length} message(s) (full chat)...`);
-
-        // 하이라이트 텍스트 중 현재 채팅에 존재하는 것 개수 세기
-        let matchCount = 0;
-        const totalToCheck = Math.min(otherHighlights.length, 15); // 최대 15개 하이라이트 확인
-
-        for (let i = 0; i < totalToCheck; i++) {
-            const hl = otherHighlights[i];
-            const hlText = hl.text.replace(/\s+/g, ' ').trim();
-
-            if (hlText.length < 10) {
-                continue; // 너무 짧은 하이라이트는 스킵
-            }
-
-            // 현재 채팅의 어떤 메시지든 이 하이라이트 텍스트를 포함하는지 확인
-            const found = currentMessages.some(mesText => mesText.includes(hlText));
-
-            if (found) {
-                matchCount++;
-            }
-        }
-
-        // 일치율 계산
-        const matchRatio = totalToCheck > 0 ? matchCount / totalToCheck : 0;
-        console.log(`[SillyTavern-Highlighter] Match result: ${matchCount}/${totalToCheck} = ${(matchRatio * 100).toFixed(1)}%`);
-
-        // 70% 이상 일치하면 체크포인트/분기로 판단 (80%에서 70%로 완화)
-        if (matchRatio >= 0.7) {
-            console.log(`[SillyTavern-Highlighter] ✅ Checkpoint/branch detected: ${otherChatFile} (match ratio: ${(matchRatio * 100).toFixed(1)}%)`);
-            return { chatFile: otherChatFile, matchRatio: matchRatio }; // ⭐ 일치율도 함께 반환
-        }
-
-        console.log(`[SillyTavern-Highlighter] ❌ Match ratio too low (need ≥70%)`);
-        return null;
-    } catch (error) {
-        console.warn('[SillyTavern-Highlighter] Error detecting checkpoint:', error);
-        return null; // 오류 시 조용히 실패
-    }
-}
-
 function restoreHighlightsInChat() {
     const chatFile = getCurrentChatFile();
     const charId = this_chid;
 
     if (!chatFile || !charId) return;
 
-    // ⭐ 현재 채팅 파일의 하이라이트
+    // ⭐ 현재 채팅 파일의 형광펜만 복원 (자동 복사 기능 제거됨)
     let currentChatHighlights = settings.highlights[charId]?.[chatFile]?.highlights || [];
-
-    // ⭐⭐ 체크포인트/분기 자동 복사 (안전하고 경량화됨)
-    const shouldCheckForCopy = currentChatHighlights.length === 0 && chat && chat.length >= 3;
-
-    if (shouldCheckForCopy && settings.highlights[charId]) {
-        console.log(`[SillyTavern-Highlighter] Checking for checkpoint/branch... (current chat: ${chatFile}, messages: ${chat.length})`);
-
-        try {
-            // 다른 채팅 파일들 중에서 체크포인트/분기 찾기
-            let sourceChatFile = null;
-            let bestMatchRatio = 0;
-            const otherChatFiles = Object.keys(settings.highlights[charId]).filter(f => f !== chatFile);
-            console.log(`[SillyTavern-Highlighter] Found ${otherChatFiles.length} other chat file(s) to check:`, otherChatFiles);
-
-            // ⭐ 모든 채팅을 검사하여 가장 일치율이 높은 것 선택
-            for (const otherChatFile in settings.highlights[charId]) {
-                if (otherChatFile === chatFile) continue;
-
-                const result = detectCheckpointOrBranch(chat, otherChatFile, charId);
-                // ⭐ 안전 장치: result가 객체이고 필요한 필드를 가지고 있는지 확인
-                if (result && typeof result === 'object' && result.chatFile && typeof result.matchRatio === 'number') {
-                    if (result.matchRatio > bestMatchRatio) {
-                        sourceChatFile = result.chatFile;
-                        bestMatchRatio = result.matchRatio;
-                    }
-                }
-            }
-
-            if (sourceChatFile) {
-                console.log(`[SillyTavern-Highlighter] Best match: "${sourceChatFile}" (${(bestMatchRatio * 100).toFixed(1)}%)`);
-            }
-
-            // 체크포인트/분기가 감지되면 하이라이트 복사
-            if (sourceChatFile) {
-                console.log(`[SillyTavern-Highlighter] ✅ Checkpoint/branch confirmed: ${sourceChatFile}`);
-                const copiedHighlights = [];
-                const sourceHighlights = settings.highlights[charId][sourceChatFile]?.highlights || [];
-                console.log(`[SillyTavern-Highlighter] Attempting to copy ${sourceHighlights.length} highlight(s)...`);
-
-                // ⭐⭐ 분기/체크포인트에서는 mesId가 달라질 수 있으므로 메시지 내용으로 매칭
-                sourceHighlights.forEach((hl, idx) => {
-                    const normalizedHlText = hl.text.replace(/\s+/g, ' ').trim();
-                    let foundMesId = null;
-                    let foundSwipeId = null;
-
-                    // 현재 채팅의 모든 메시지를 순회하며 하이라이트 텍스트를 포함하는 메시지 찾기
-                    for (let mesId = 0; mesId < chat.length; mesId++) {
-                        const message = chat[mesId];
-                        if (!message || !message.mes) continue;
-
-                        // ⭐ HTML 태그 제거 후 메시지 텍스트 정규화
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = message.mes;
-                        const mesTextContent = tempDiv.textContent || tempDiv.innerText || '';
-                        const mesText = mesTextContent.replace(/\s+/g, ' ').trim();
-
-                        // 하이라이트 텍스트가 포함되어 있는지 확인
-                        if (mesText.includes(normalizedHlText)) {
-                            foundMesId = mesId;
-                            foundSwipeId = message.swipe_id || 0;
-                            break; // 첫 번째 일치하는 메시지 사용
-                        }
-                    }
-
-                    // 일치하는 메시지를 찾았으면 하이라이트 복사
-                    if (foundMesId !== null) {
-                        // 중복 방지
-                        const isDuplicate = copiedHighlights.some(existing =>
-                            existing.mesId === foundMesId &&
-                            existing.text.replace(/\s+/g, ' ').trim() === normalizedHlText
-                        );
-
-                        if (!isDuplicate) {
-                            // 새 ID와 새 mesId로 복사
-                            const copiedHl = {
-                                ...hl,
-                                id: 'hl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-                                mesId: foundMesId, // ⭐ 새 mesId로 업데이트
-                                swipeId: foundSwipeId, // ⭐ 새 swipeId로 업데이트
-                                label: getMessageLabel(foundMesId), // ⭐ 새 라벨로 업데이트
-                                timestamp: Date.now()
-                            };
-                            copiedHighlights.push(copiedHl);
-                            console.log(`[SillyTavern-Highlighter] Copied highlight ${idx + 1}: old mesId=${hl.mesId} → new mesId=${foundMesId}`);
-                        }
-                    } else {
-                        console.warn(`[SillyTavern-Highlighter] Could not find message for highlight ${idx + 1}: "${normalizedHlText.substring(0, 50)}..."`);
-                    }
-                });
-
-                // ⭐⭐ 복사된 하이라이트를 현재 채팅에 저장 (기존 데이터 절대 건드리지 않음)
-                if (copiedHighlights.length > 0) {
-                    if (!settings.highlights[charId]) settings.highlights[charId] = {};
-                    if (!settings.highlights[charId][chatFile]) {
-                        settings.highlights[charId][chatFile] = {
-                            lastModified: Date.now(),
-                            highlights: []
-                        };
-                    }
-
-                    // 기존 하이라이트는 유지하고 새로운 것만 추가
-                    settings.highlights[charId][chatFile].highlights = copiedHighlights;
-                    settings.highlights[charId][chatFile].lastModified = Date.now();
-                    currentChatHighlights = copiedHighlights;
-
-                    saveSettingsDebounced();
-                    console.log(`[SillyTavern-Highlighter] Auto-copied ${copiedHighlights.length} highlight(s) from checkpoint/branch: ${sourceChatFile}`);
-
-                    // 사용자에게 알림
-                    toastr.info(`${copiedHighlights.length}개의 형광펜을 자동으로 복사했습니다`, '체크포인트/분기 감지', { timeOut: 3000 });
-                }
-            }
-        } catch (error) {
-            // 오류 발생 시 조용히 실패 (사용자에게 영향 없음)
-            console.warn('[SillyTavern-Highlighter] Error during auto-copy:', error);
-        }
-    }
 
     // ⭐ 화면에 하이라이트 표시
     const allHighlights = [...currentChatHighlights];
@@ -3599,6 +3418,17 @@ function onCharacterChange() {
         previousCharId = this_chid;
         previousChatFile = getCurrentChatFile();
         previousChatLength = chat ? chat.length : 0;
+        previousChatChangeTime = Date.now();
+
+        // 현재 채팅의 첫/마지막 메시지 저장
+        if (chat && chat.length >= 1) { // ⭐ 3 → 1
+            previousChatMessages = {
+                first3: chat.slice(0, 3).map(m => (m.mes || '').substring(0, 100)),
+                last3: chat.slice(-3).map(m => (m.mes || '').substring(0, 100))
+            };
+        } else {
+            previousChatMessages = null;
+        }
 
         restoreHighlightsInChat();
 
@@ -3620,9 +3450,11 @@ function onChatChange() {
         const currentCharId = this_chid;
         const currentChatFile = getCurrentChatFile();
         const currentChatLength = chat ? chat.length : 0;
+        const currentTime = Date.now();
 
-        // 같은 캐릭터, 같은 메시지 개수, 다른 파일 이름 = 제목만 변경 OR 체크포인트/분기
-        const isChatRenamed =
+        // ⭐⭐ 더 엄격한 채팅 제목 변경 감지
+        // 1. 기본 조건: 같은 캐릭터, 같은 메시지 개수, 다른 파일 이름
+        const basicCondition =
             previousCharId !== null &&
             currentCharId === previousCharId &&
             previousChatFile !== null &&
@@ -3630,48 +3462,121 @@ function onChatChange() {
             previousChatFile !== currentChatFile &&
             previousChatLength !== null &&
             currentChatLength === previousChatLength &&
-            currentChatLength > 0; // 빈 채팅이 아닌 경우만
+            currentChatLength >= 1; // ⭐ 최소 1개 이상의 메시지 (3 → 1)
 
-        if (isChatRenamed) {
-            // ⭐⭐ 체크포인트/분기와 실제 제목 변경 구별
-            // 파일명에 Branch, Checkpoint 등이 포함되어 있으면 분기/체크포인트로 판단
-            const checkpointKeywords = ['branch', 'checkpoint', 'fork', 'split'];
-            const isCheckpointOrBranch = checkpointKeywords.some(keyword =>
-                currentChatFile.toLowerCase().includes(keyword) &&
-                !previousChatFile.toLowerCase().includes(keyword)
-            );
+        let isChatRenamed = false;
 
-            if (isCheckpointOrBranch) {
-                // 체크포인트/분기 생성 - 데이터 이동하지 않음 (자동 복사가 처리함)
-                console.log(`[SillyTavern-Highlighter] Checkpoint/branch creation detected: "${previousChatFile}" -> "${currentChatFile}"`);
-                console.log(`[SillyTavern-Highlighter] Highlights will be auto-copied by restoreHighlightsInChat()`);
-            } else {
-                // 실제 채팅 제목 변경 - 데이터 이동
-                // 이전 파일 이름의 하이라이트 데이터가 있는지 확인
-                if (settings.highlights[currentCharId]?.[previousChatFile]) {
-                    // 새 파일 이름에 데이터가 없는 경우에만 이동
-                    if (!settings.highlights[currentCharId][currentChatFile]) {
-                        console.log(`[SillyTavern-Highlighter] Chat renamed detected: "${previousChatFile}" -> "${currentChatFile}" (${currentChatLength} messages)`);
+        if (basicCondition) {
+            // 2. 메시지 내용 비교: 첫 3개와 마지막 3개 메시지가 동일한가?
+            let messagesMatch = false;
 
-                        // 하이라이트 데이터를 새 키로 이동
-                        settings.highlights[currentCharId][currentChatFile] = settings.highlights[currentCharId][previousChatFile];
+            if (chat && previousChatMessages) {
+                const currentFirst3 = chat.slice(0, 3).map(m => (m.mes || '').substring(0, 100));
+                const currentLast3 = chat.slice(-3).map(m => (m.mes || '').substring(0, 100));
 
-                        // 이전 키 삭제
-                        delete settings.highlights[currentCharId][previousChatFile];
+                const prevFirst3 = previousChatMessages.first3;
+                const prevLast3 = previousChatMessages.last3;
 
-                        // 저장
-                        saveSettingsDebounced();
+                // 모든 메시지가 일치하는지 확인
+                const first3Match = currentFirst3.every((msg, i) => msg === prevFirst3[i]);
+                const last3Match = currentLast3.every((msg, i) => msg === prevLast3[i]);
 
-                        toastr.success('형광펜이 변경된 채팅 제목과 동기화되었습니다');
-                    }
+                messagesMatch = first3Match && last3Match;
+            }
+
+            if (messagesMatch) {
+                // 3. 체크포인트/분기 키워드 체크
+                const checkpointKeywords = ['branch', 'checkpoint', 'fork', 'split'];
+                const isCheckpointOrBranch = checkpointKeywords.some(keyword =>
+                    currentChatFile.toLowerCase().includes(keyword) &&
+                    !previousChatFile.toLowerCase().includes(keyword)
+                );
+
+                if (!isCheckpointOrBranch) {
+                    // 모든 조건을 만족: 진짜 채팅 제목 변경!
+                    isChatRenamed = true;
                 }
             }
         }
 
-        // 현재 상태 저장
+        if (isChatRenamed) {
+            // ⭐ checkChatFileChanges에서 이미 처리했을 수 있으니 확인
+            const alreadyMoved = !settings.highlights[currentCharId]?.[previousChatFile] &&
+                                 settings.highlights[currentCharId]?.[currentChatFile];
+
+            // 실제 채팅 제목 변경 - 데이터 이동
+            if (settings.highlights[currentCharId]?.[previousChatFile]) {
+                // 새 파일 이름에 데이터가 없는 경우에만 이동
+                if (!settings.highlights[currentCharId][currentChatFile]) {
+                    console.log(`[SillyTavern-Highlighter] Chat title changed (onChatChange): "${previousChatFile}" -> "${currentChatFile}"`);
+
+                    // 형광펜 데이터를 새 키로 이동
+                    settings.highlights[currentCharId][currentChatFile] = settings.highlights[currentCharId][previousChatFile];
+
+                    // 이전 키 삭제
+                    delete settings.highlights[currentCharId][previousChatFile];
+
+                    // ⭐ 채팅 메모도 함께 이동
+                    const oldMemoKey = `${currentCharId}_${previousChatFile}`;
+                    const newMemoKey = `${currentCharId}_${currentChatFile}`;
+                    if (settings.chatMemos?.[oldMemoKey]) {
+                        if (!settings.chatMemos) settings.chatMemos = {};
+                        settings.chatMemos[newMemoKey] = settings.chatMemos[oldMemoKey];
+                        delete settings.chatMemos[oldMemoKey];
+                        console.log(`[SillyTavern-Highlighter] Chat memo moved: "${oldMemoKey}" -> "${newMemoKey}"`);
+                    }
+
+                    // 저장
+                    saveSettingsDebounced();
+
+                    toastr.success('형광펜이 변경된 채팅 제목과 동기화되었습니다');
+                }
+            } else if (alreadyMoved) {
+                // checkChatFileChanges에서 이미 처리됨, UI만 업데이트
+                console.log(`[SillyTavern-Highlighter] Chat rename already processed, updating UI only`);
+            }
+
+            // ⭐ 데이터 이동 여부와 상관없이 UI는 업데이트
+            // selectedChat 업데이트 (breadcrumb에서 사용)
+            if (selectedChat === previousChatFile) {
+                selectedChat = currentChatFile;
+            }
+
+            // 패널이 열려있으면 즉시 업데이트
+            const $panel = $('#highlighter-panel');
+            if ($panel.length > 0 && $panel.hasClass('visible')) {
+                const $content = $('#highlighter-content');
+
+                if (currentView === VIEW_LEVELS.CHARACTER_LIST) {
+                    // 캐릭터 리스트 뷰 - 전체 리스트 새로고침
+                    renderCharacterList($content);
+                } else if (currentView === VIEW_LEVELS.CHAT_LIST) {
+                    // 채팅 리스트 뷰 - 현재 캐릭터의 채팅 리스트만
+                    renderChatList($content, currentCharId);
+                } else if (currentView === VIEW_LEVELS.HIGHLIGHT_LIST) {
+                    // 형광펜 리스트 뷰 - breadcrumb 업데이트 (채팅 제목 반영)
+                    updateBreadcrumb();
+                    // 형광펜 리스트도 다시 렌더링 (chatFile 기준)
+                    renderHighlightList($content, currentCharId, currentChatFile);
+                }
+            }
+        }
+
+        // 현재 상태 저장 (다음 비교를 위해)
         previousCharId = currentCharId;
         previousChatFile = currentChatFile;
         previousChatLength = currentChatLength;
+        previousChatChangeTime = currentTime;
+
+        // 현재 채팅의 첫/마지막 메시지 저장
+        if (chat && chat.length >= 1) { // ⭐ 3 → 1
+            previousChatMessages = {
+                first3: chat.slice(0, 3).map(m => (m.mes || '').substring(0, 100)),
+                last3: chat.slice(-3).map(m => (m.mes || '').substring(0, 100))
+            };
+        } else {
+            previousChatMessages = null;
+        }
 
         restoreHighlightsInChat();
 
@@ -3683,6 +3588,104 @@ function onChatChange() {
 
 // 캐릭터 정보 캐시 (변경 감지용)
 let characterCache = {};
+
+// 채팅 파일명 변경 실시간 감지
+function checkChatFileChanges() {
+    // 현재 채팅이 있을 때만 체크
+    const currentCharId = this_chid;
+    const currentChatFile = getCurrentChatFile();
+
+    if (!currentCharId || !currentChatFile) {
+        return;
+    }
+
+    // 이전 정보와 비교
+    if (previousChatFile !== null &&
+        previousChatFile !== currentChatFile &&
+        previousCharId === currentCharId) {
+
+        // 채팅 파일이 변경되었음 (제목 변경 가능성)
+        console.log(`[SillyTavern-Highlighter] Chat file changed detected: "${previousChatFile}" -> "${currentChatFile}"`);
+
+        // onChatChange의 제목 변경 감지 로직을 강제로 트리거
+        const currentChatLength = chat ? chat.length : 0;
+
+        // 기본 조건 체크
+        if (previousChatLength !== null &&
+            currentChatLength === previousChatLength &&
+            currentChatLength >= 1) { // ⭐ 3 → 1로 변경 (메시지 1개 이상이면 OK)
+
+            // 메시지 내용 비교
+            let messagesMatch = false;
+            if (chat && previousChatMessages) {
+                const currentFirst3 = chat.slice(0, 3).map(m => (m.mes || '').substring(0, 100));
+                const currentLast3 = chat.slice(-3).map(m => (m.mes || '').substring(0, 100));
+                const prevFirst3 = previousChatMessages.first3;
+                const prevLast3 = previousChatMessages.last3;
+                const first3Match = currentFirst3.every((msg, i) => msg === prevFirst3[i]);
+                const last3Match = currentLast3.every((msg, i) => msg === prevLast3[i]);
+                messagesMatch = first3Match && last3Match;
+            }
+
+            if (messagesMatch) {
+                // 체크포인트/분기 키워드 체크
+                const checkpointKeywords = ['branch', 'checkpoint', 'fork', 'split'];
+                const isCheckpointOrBranch = checkpointKeywords.some(keyword =>
+                    currentChatFile.toLowerCase().includes(keyword) &&
+                    !previousChatFile.toLowerCase().includes(keyword)
+                );
+
+                if (!isCheckpointOrBranch) {
+                    // 진짜 제목 변경 감지!
+                    if (settings.highlights[currentCharId]?.[previousChatFile] &&
+                        !settings.highlights[currentCharId][currentChatFile]) {
+
+                        console.log(`[SillyTavern-Highlighter] Real-time chat title change detected!`);
+
+                        // 형광펜 데이터 이동
+                        settings.highlights[currentCharId][currentChatFile] = settings.highlights[currentCharId][previousChatFile];
+                        delete settings.highlights[currentCharId][previousChatFile];
+
+                        // 채팅 메모 이동
+                        const oldMemoKey = `${currentCharId}_${previousChatFile}`;
+                        const newMemoKey = `${currentCharId}_${currentChatFile}`;
+                        if (settings.chatMemos?.[oldMemoKey]) {
+                            if (!settings.chatMemos) settings.chatMemos = {};
+                            settings.chatMemos[newMemoKey] = settings.chatMemos[oldMemoKey];
+                            delete settings.chatMemos[oldMemoKey];
+                        }
+
+                        saveSettingsDebounced();
+                        toastr.success('형광펜이 변경된 채팅 제목과 동기화되었습니다');
+
+                        // ⭐ selectedChat 업데이트 (breadcrumb에서 사용)
+                        if (selectedChat === previousChatFile) {
+                            selectedChat = currentChatFile;
+                        }
+
+                        // 패널 업데이트
+                        const $panel = $('#highlighter-panel');
+                        if ($panel.length > 0 && $panel.hasClass('visible')) {
+                            const $content = $('#highlighter-content');
+                            if (currentView === VIEW_LEVELS.CHARACTER_LIST) {
+                                renderCharacterList($content);
+                            } else if (currentView === VIEW_LEVELS.CHAT_LIST) {
+                                renderChatList($content, currentCharId);
+                            } else if (currentView === VIEW_LEVELS.HIGHLIGHT_LIST) {
+                                updateBreadcrumb();
+                                // 형광펜 리스트도 다시 렌더링 (chatFile 기준)
+                                renderHighlightList($content, currentCharId, currentChatFile);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ⭐ 상태 업데이트 하지 않음 - onChatChange에서 처리
+        // previousChatFile 등을 여기서 업데이트하면 onChatChange에서 감지 못함
+    }
+}
 
 // 캐릭터 정보 변경 감지
 function checkCharacterChanges() {
@@ -4492,6 +4495,9 @@ function showUpdateNotification(latestVersion) {
 
     // 캐릭터 정보 변경 감지 타이머 (2초마다 체크)
     setInterval(checkCharacterChanges, 2000);
+
+    // 채팅 파일명 변경 실시간 감지 타이머 (1초마다 체크)
+    setInterval(checkChatFileChanges, 1000);
 
     // 항상 활성화 모드가 켜져 있으면 초기화 시 자동 활성화
     if (settings.alwaysHighlightMode) {
