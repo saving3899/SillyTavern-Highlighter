@@ -4075,8 +4075,7 @@ async function checkForUpdates(forceCheck = false) {
             return { version: latestVersion, updateMessage: remoteManifest.updateMessage || '' };
         } else {
             console.log('[SillyTavern-Highlighter] You are up to date!');
-            const localManifest = await $.get(`${extensionFolderPath}/manifest.json`);
-            return { version: null, updateMessage: localManifest.updateMessage || '' };
+            return { version: null, updateMessage: remoteManifest.updateMessage || '' };
         }
 
     } catch (error) {
