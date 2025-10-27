@@ -1649,8 +1649,35 @@ function showColorMenu(x, y, text, range, el) {
         `<button class="hl-color-btn" data-color="${c.bg}" style="background: ${c.bg}"></button>`
     ).join('');
 
+    // 선택된 텍스트의 위치 가져오기
+    const rangeRect = range.getBoundingClientRect();
+
+    // 커서 위치를 기본으로 사용하되, 선택된 텍스트 근처로 제한
+    let menuX = x;
+    let menuY = y;
+
+    const maxDistance = 50; // 최대 거리 (px)
+
+    // 커서가 텍스트에서 너무 멀면 텍스트 근처로 이동
+    const textCenterX = rangeRect.left + rangeRect.width / 2 + window.scrollX;
+    const textCenterY = rangeRect.top + rangeRect.height / 2 + window.scrollY;
+
+    const distanceX = Math.abs(menuX - textCenterX);
+    const distanceY = Math.abs(menuY - textCenterY);
+
+    if (distanceX > maxDistance) {
+        menuX = menuX > textCenterX ? textCenterX + maxDistance : textCenterX - maxDistance;
+    }
+
+    if (distanceY > maxDistance) {
+        menuY = menuY > textCenterY ? textCenterY + maxDistance : textCenterY - maxDistance;
+    }
+
+    // Y 위치는 텍스트 바로 아래로 조정 (텍스트 가리지 않도록)
+    menuY = rangeRect.bottom + window.scrollY + 5;
+
     const menu = `
-        <div id="highlight-color-menu" style="left: ${x}px; top: ${y}px;">
+        <div id="highlight-color-menu" style="left: ${menuX}px; top: ${menuY}px;">
             ${colorButtons}
         </div>
     `;
@@ -1661,10 +1688,11 @@ function showColorMenu(x, y, text, range, el) {
     const $menu = $('#highlight-color-menu');
     const rect = $menu[0].getBoundingClientRect();
 
-    let adjustedX = x;
-    let adjustedY = y;
+    let adjustedX = menuX;
+    let adjustedY = menuY;
 
     const margin = window.innerWidth <= 768 ? 20 : 10;
+    const bottomMargin = window.innerWidth <= 768 ? 80 : 60; // 하단은 더 넓게
 
     // 오른쪽 경계 확인
     if (rect.right > window.innerWidth) {
@@ -1676,14 +1704,14 @@ function showColorMenu(x, y, text, range, el) {
         adjustedX = margin;
     }
 
-    // 하단 경계 확인
-    if (rect.bottom > window.innerHeight) {
-        adjustedY = y - rect.height - margin;
+    // 하단 경계 확인 - 텍스트 위쪽으로 이동
+    if (rect.bottom > window.innerHeight - bottomMargin) {
+        adjustedY = rangeRect.top + window.scrollY - rect.height - 5;
     }
 
     // 상단 경계 확인
-    if (adjustedY < margin) {
-        adjustedY = margin;
+    if (adjustedY < window.scrollY + margin) {
+        adjustedY = window.scrollY + margin;
     }
 
     $menu.css({ left: adjustedX + 'px', top: adjustedY + 'px' });
