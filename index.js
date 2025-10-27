@@ -83,6 +83,16 @@ function getColors() {
     return settings.customColors || DEFAULT_COLORS;
 }
 
+function getColorIndex(color) {
+    const colors = getColors();
+    for (let i = 0; i < colors.length; i++) {
+        if (colors[i].bg === color) {
+            return i;
+        }
+    }
+    return undefined;
+}
+
 function switchPreset(presetIndex) {
     if (!settings.colorPresets || !settings.colorPresets[presetIndex]) {
         console.error('[SillyTavern-Highlighter] Invalid preset index:', presetIndex);
@@ -93,10 +103,10 @@ function switchPreset(presetIndex) {
     const oldColors = settings.colorPresets[oldPresetIndex].colors;
     const newColors = settings.colorPresets[presetIndex].colors;
 
-    // 색상 매핑 테이블 생성 (이전 프리셋 hex -> 새 프리셋 hex)
-    const colorMapping = {};
+    // 색상 매핑 테이블 생성 (이전 프리셋 hex -> colorIndex 추출용)
+    const colorToIndexMap = {};
     oldColors.forEach((oldColor, index) => {
-        colorMapping[oldColor.bg] = newColors[index].bg;
+        colorToIndexMap[oldColor.bg] = index;
     });
 
     // 모든 하이라이트의 색상을 새 프리셋으로 매핑
@@ -105,8 +115,15 @@ function switchPreset(presetIndex) {
             const chatData = settings.highlights[charId][chatFile];
             if (chatData && chatData.highlights) {
                 chatData.highlights.forEach(hl => {
-                    if (colorMapping[hl.color]) {
-                        hl.color = colorMapping[hl.color];
+                    // colorIndex가 있으면 인덱스 기반 매핑 (정확함)
+                    if (hl.colorIndex !== undefined && newColors[hl.colorIndex]) {
+                        hl.color = newColors[hl.colorIndex].bg;
+                    }
+                    // colorIndex가 없으면 색상 코드로 인덱스 찾기 (하위 호환성)
+                    else if (colorToIndexMap[hl.color] !== undefined) {
+                        const index = colorToIndexMap[hl.color];
+                        hl.colorIndex = index; // 마이그레이션: 인덱스 추가
+                        hl.color = newColors[index].bg;
                     }
                 });
             }
@@ -2251,6 +2268,7 @@ function createHighlight(text, color, range, el) {
         swipeId: getCurrentSwipeId(mesId), // 스와이프 ID 저장
         text: actualText,
         color: color,
+        colorIndex: getColorIndex(color), // 색상 인덱스 저장 (프리셋 전환 시 정확한 매핑)
         note: '',
         label: getMessageLabel(mesId), // 라벨 저장
         timestamp: Date.now(),
