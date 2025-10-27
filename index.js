@@ -668,6 +668,14 @@ function bindDragFunctionality() {
         dragOffsetX = e.clientX - rect.left;
         dragOffsetY = e.clientY - rect.top;
 
+        // 기존 transform 제거하고 left/top으로 정규화
+        const panel = $panel[0];
+        panel.style.left = rect.left + 'px';
+        panel.style.top = rect.top + 'px';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+        panel.style.transform = 'none';
+
         e.preventDefault();
     });
 
@@ -675,31 +683,33 @@ function bindDragFunctionality() {
         if (!isDragging) return;
 
         requestAnimationFrame(() => {
+            const $panel = $('#highlighter-panel');
+            const panel = $panel[0];
+
+            // 목표 위치 계산
             let newLeft = e.clientX - dragOffsetX;
             let newTop = e.clientY - dragOffsetY;
 
+            // 화면 경계 체크
             const maxX = window.innerWidth - $panel.width();
             const maxY = window.innerHeight - $panel.height();
 
             newLeft = Math.max(0, Math.min(newLeft, maxX));
             newTop = Math.max(0, Math.min(newTop, maxY));
 
-            $panel.css({
-                left: newLeft + 'px',
-                top: newTop + 'px',
-                right: 'auto',
-                bottom: 'auto',
-                transform: 'none'
-            });
+            // left/top 직접 변경 (GPU 가속은 CSS의 will-change로 유지)
+            panel.style.left = newLeft + 'px';
+            panel.style.top = newTop + 'px';
         });
     });
 
     $(document).on('mouseup', function () {
         if (isDragging) {
             isDragging = false;
+            const $panel = $('#highlighter-panel');
             $panel.removeClass('dragging');
 
-            // 패널 위치 저장
+            // 최종 위치 저장
             const rect = $panel[0].getBoundingClientRect();
             settings.panelPosition = {
                 top: rect.top,
@@ -2418,11 +2428,94 @@ async function jumpToMessage(mesId, hlId) {
         toastr.info(`${charName} 캐릭터로 이동 중...`);
 
         try {
-            // SillyTavern API를 사용하여 캐릭터 변경
-            await executeSlashCommandsWithOptions(`/char ${charName}`);
+            let success = false;
 
-            // 캐릭터 로딩 대기
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            // 방법 1: 다양한 선택자로 charId 버튼 찾기
+            let $charButton = null;
+            const selectors = [
+                `.select_rm_characters[chid="${targetCharId}"]`,
+                `.select_rm_characters[data-chid="${targetCharId}"]`,
+                `#rm_button_selected_ch${targetCharId}`,
+                `.character_select[chid="${targetCharId}"]`
+            ];
+
+            for (const selector of selectors) {
+                $charButton = $(selector);
+                if ($charButton.length > 0) {
+                    console.log(`[SillyTavern-Highlighter] Found character button with selector: ${selector}`);
+                    break;
+                }
+            }
+
+            if ($charButton && $charButton.length > 0) {
+                $charButton.trigger('click');
+                await new Promise(resolve => setTimeout(resolve, 600));
+
+                // 캐릭터 변경 확인
+                if (String(this_chid) === targetCharIdStr) {
+                    success = true;
+                    console.log('[SillyTavern-Highlighter] Character changed successfully via button click');
+                }
+            }
+
+            // 방법 2: SillyTavern 내부 API 직접 호출
+            if (!success && typeof SillyTavern !== 'undefined') {
+                try {
+                    const context = SillyTavern.getContext();
+                    if (context && typeof context.selectCharacterById === 'function') {
+                        await context.selectCharacterById(String(targetCharId));
+                        await new Promise(resolve => setTimeout(resolve, 600));
+
+                        if (String(this_chid) === targetCharIdStr) {
+                            success = true;
+                            console.log('[SillyTavern-Highlighter] Character changed successfully via selectCharacterById');
+                        }
+                    }
+                } catch (e) {
+                    console.log('[SillyTavern-Highlighter] selectCharacterById failed:', e);
+                }
+            }
+
+            // 방법 3: 폴백 - 슬래시 명령어 사용 (동일 이름 캐릭터는 구분 불가능)
+            if (!success) {
+                console.log('[SillyTavern-Highlighter] Falling back to /char command');
+
+                // 동일 이름 캐릭터가 여러 개 있는지 확인
+                const sameNameChars = Object.keys(characters).filter(id =>
+                    characters[id]?.name === charName
+                );
+
+                if (sameNameChars.length > 1) {
+                    // 동일 이름 캐릭터가 있을 경우, 사용자에게 수동 전환 안내
+                    toastr.error(
+                        `"${charName}" 이름의 캐릭터가 ${sameNameChars.length}개 있어 자동 이동이 불가능합니다.<br><br>` +
+                        '<strong>해결 방법:</strong><br>' +
+                        '1. 수동으로 올바른 캐릭터를 선택하세요<br>' +
+                        '2. 하이라이트를 다시 클릭하면 올바른 채팅으로 이동합니다<br>' +
+                        '3. 또는 캐릭터 메모 기능을 사용하여 구분하세요',
+                        '자동 이동 불가',
+                        {
+                            timeOut: 10000,
+                            extendedTimeOut: 5000,
+                            escapeHtml: false
+                        }
+                    );
+                    return; // 이동 중단
+                }
+
+                // 동일 이름이 없으면 정상적으로 이동
+                await executeSlashCommandsWithOptions(`/char ${charName}`);
+                await new Promise(resolve => setTimeout(resolve, 600));
+
+                if (String(this_chid) === targetCharIdStr) {
+                    success = true;
+                    console.log('[SillyTavern-Highlighter] Character changed successfully via /char command');
+                }
+            }
+
+            if (!success) {
+                throw new Error('캐릭터 변경이 완료되지 않았습니다');
+            }
         } catch (error) {
             console.error('[SillyTavern-Highlighter] Character change error:', error);
             toastr.error('캐릭터 변경 실패: ' + error.message);
@@ -2453,7 +2546,7 @@ async function jumpToMessage(mesId, hlId) {
             }
 
             // 채팅 전환 대기
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 400));
 
             // 전환 성공 확인
             if (getCurrentChatFile() === targetChatFile) {
@@ -2569,7 +2662,7 @@ async function jumpToMessageInternal(mesId, hlId) {
                     );
 
                     // 메시지로 이동은 하되 플래시 효과는 약하게
-                    $mes[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    $mes[0].scrollIntoView({ behavior: 'auto', block: 'center' });
                     return;
                 }
             }
@@ -2577,17 +2670,17 @@ async function jumpToMessageInternal(mesId, hlId) {
             // 하이라이트가 유효한 경우 해당 하이라이트로 스크롤
             const $highlight = $mes.find(`.text-highlight[data-hl-id="${hlId}"]`).first();
             if ($highlight.length) {
-                $highlight[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                $highlight[0].scrollIntoView({ behavior: 'auto', block: 'center' });
                 $highlight.addClass('flash-highlight');
                 setTimeout(() => $highlight.removeClass('flash-highlight'), 2000);
             } else {
                 // 하이라이트를 찾지 못하면 메시지로 스크롤
-                $mes[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                $mes[0].scrollIntoView({ behavior: 'auto', block: 'center' });
                 $mes.addClass('flash-highlight');
                 setTimeout(() => $mes.removeClass('flash-highlight'), 2000);
             }
         } else {
-            $mes[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            $mes[0].scrollIntoView({ behavior: 'auto', block: 'center' });
             $mes.addClass('flash-highlight');
             setTimeout(() => $mes.removeClass('flash-highlight'), 2000);
         }
@@ -2644,23 +2737,23 @@ async function jumpToMessageInternal(mesId, hlId) {
                                         escapeHtml: false
                                     }
                                 );
-                                $retryMes[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                $retryMes[0].scrollIntoView({ behavior: 'auto', block: 'center' });
                                 return;
                             }
                         }
 
                         const $highlight = $retryMes.find(`.text-highlight[data-hl-id="${hlId}"]`).first();
                         if ($highlight.length) {
-                            $highlight[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            $highlight[0].scrollIntoView({ behavior: 'auto', block: 'center' });
                             $highlight.addClass('flash-highlight');
                             setTimeout(() => $highlight.removeClass('flash-highlight'), 2000);
                         } else {
-                            $retryMes[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            $retryMes[0].scrollIntoView({ behavior: 'auto', block: 'center' });
                             $retryMes.addClass('flash-highlight');
                             setTimeout(() => $retryMes.removeClass('flash-highlight'), 2000);
                         }
                     } else {
-                        $retryMes[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        $retryMes[0].scrollIntoView({ behavior: 'auto', block: 'center' });
                         $retryMes.addClass('flash-highlight');
                         setTimeout(() => $retryMes.removeClass('flash-highlight'), 2000);
                     }
@@ -4092,6 +4185,16 @@ function showUpdateNotification(latestVersion) {
     try {
         const html = await $.get(`${extensionFolderPath}/settings.html`);
         $('#extensions_settings2').append(html);
+
+        // manifest.json에서 버전 및 업데이트 메시지 읽기
+        try {
+            const manifest = await $.get(`${extensionFolderPath}/manifest.json`);
+            $('#hl-current-version').text(manifest.version || '1.0.97');
+            $('#hl-update-message').text(manifest.updateMessage || '업데이트 정보 없음');
+        } catch (error) {
+            console.warn('[SillyTavern-Highlighter] Failed to load manifest:', error);
+            $('#hl-update-message').text('업데이트 정보를 불러올 수 없습니다.');
+        }
 
         $('#hl_setting_delete_mode').val(settings.deleteMode).on('change', function () {
             settings.deleteMode = $(this).val();
