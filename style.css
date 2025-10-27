@@ -913,6 +913,10 @@
     cursor: pointer !important;
     transition: all 0.2s !important;
     background-color: var(--hl-bg-color) !important;
+    font-size: inherit !important;
+    font-weight: inherit !important;
+    font-family: inherit !important;
+    line-height: inherit !important;
 }
 
 .text-highlight[data-color="#FFE4B5"] {

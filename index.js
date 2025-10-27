@@ -83,11 +83,119 @@ function getColors() {
     return settings.customColors || DEFAULT_COLORS;
 }
 
+function switchPreset(presetIndex) {
+    if (!settings.colorPresets || !settings.colorPresets[presetIndex]) {
+        console.error('[SillyTavern-Highlighter] Invalid preset index:', presetIndex);
+        return;
+    }
+
+    const oldPresetIndex = settings.currentPresetIndex;
+    const oldColors = settings.colorPresets[oldPresetIndex].colors;
+    const newColors = settings.colorPresets[presetIndex].colors;
+
+    // 색상 매핑 테이블 생성 (이전 프리셋 hex -> 새 프리셋 hex)
+    const colorMapping = {};
+    oldColors.forEach((oldColor, index) => {
+        colorMapping[oldColor.bg] = newColors[index].bg;
+    });
+
+    // 모든 하이라이트의 색상을 새 프리셋으로 매핑
+    for (const charId in settings.highlights) {
+        for (const chatFile in settings.highlights[charId]) {
+            const chatData = settings.highlights[charId][chatFile];
+            if (chatData && chatData.highlights) {
+                chatData.highlights.forEach(hl => {
+                    if (colorMapping[hl.color]) {
+                        hl.color = colorMapping[hl.color];
+                    }
+                });
+            }
+        }
+    }
+
+    // 현재 프리셋 인덱스 업데이트
+    settings.currentPresetIndex = presetIndex;
+
+    // customColors를 새 프리셋의 colors로 업데이트 (하위 호환성)
+    settings.customColors = settings.colorPresets[presetIndex].colors;
+
+    // UI 새로고침
+    initColorCustomizer();
+    updateDynamicColorStyles();
+
+    // 채팅 내 모든 하이라이트 다시 그리기
+    $('.text-highlight').each(function() {
+        $(this).contents().unwrap();
+    });
+    restoreHighlightsInChat();
+
+    // 패널이 열려있으면 새로고침
+    if ($('#highlighter-panel').hasClass('visible')) {
+        renderView();
+    }
+
+    saveSettingsDebounced();
+    toastr.success(`${settings.colorPresets[presetIndex].name}(으)로 전환되었습니다`);
+}
+
+// 선택된 프리셋 인덱스 (적용 전)
+let selectedPresetIndex = null;
+
 function initColorCustomizer() {
     const $container = $('#hl-color-customizer');
     $container.empty();
 
-    const colors = getColors();
+    const presets = settings.colorPresets;
+    const currentIndex = settings.currentPresetIndex || 0;
+
+    // 선택된 프리셋 초기화 (현재 활성 프리셋)
+    if (selectedPresetIndex === null) {
+        selectedPresetIndex = currentIndex;
+    }
+
+    // 탭 네비게이션 생성
+    let tabsHtml = '<div class="hl-preset-tabs">';
+    presets.forEach((preset, index) => {
+        const isActive = index === currentIndex;
+        const isSelected = index === selectedPresetIndex;
+        const fontWeight = isActive ? '600' : '500';
+        tabsHtml += `
+            <div class="hl-preset-tab ${isActive ? 'active' : ''} ${isSelected && !isActive ? 'selected' : ''}" data-preset-index="${index}">
+                <span class="hl-preset-tab-name" style="font-size: 13px !important; font-weight: ${fontWeight} !important; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important; line-height: 1.4rem !important; -webkit-text-stroke: 0 !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${preset.name}">${preset.name}</span>
+            </div>
+        `;
+    });
+    tabsHtml += '</div>';
+
+    $container.append(tabsHtml);
+
+    // 선택된 프리셋의 색상 표시 (편집 가능)
+    const selectedPreset = presets[selectedPresetIndex];
+    const colors = selectedPreset.colors;
+    const isDefaultPreset = selectedPreset.isDefault;
+
+    // 프리셋 관리 버튼
+    const showApplyBtn = selectedPresetIndex !== currentIndex;
+    const presetControlHtml = `
+        <div class="hl-preset-controls">
+            <div class="hl-preset-title" title="${selectedPreset.name}">${selectedPreset.name}</div>
+            <div class="hl-preset-buttons">
+                ${showApplyBtn ? '<button class="hl-preset-apply-btn" title="선택한 프리셋을 채팅에 적용"><i class="fa-solid fa-check"></i> 적용</button>' : ''}
+                ${!isDefaultPreset ? '<button class="hl-preset-rename-btn" title="프리셋 이름 변경"><i class="fa-solid fa-pencil"></i> 이름 변경</button>' : ''}
+            </div>
+        </div>
+        ${!isDefaultPreset ? `
+        <div class="hl-quick-color-input">
+            <div class="hl-quick-color-header">
+                <label>빠른 색상 적용</label>
+                <button class="hl-quick-color-apply-btn">적용</button>
+            </div>
+            <input type="text" class="hl-quick-color-field" value="${colors.map(c => c.bg.substring(1)).join(' ')}">
+            <small class="hl-quick-color-hint">5개의 HEX 색상 코드를 띄어쓰기로 구분하여 입력하세요</small>
+        </div>
+        ` : ''}
+    `;
+    $container.append(presetControlHtml);
 
     colors.forEach((colorConfig, index) => {
         const previewBg = hexToRgba(colorConfig.bg, colorConfig.opacity);
@@ -99,16 +207,23 @@ function initColorCustomizer() {
                     <div class="hl-color-preview-text" style="color: ${textColor};">가</div>
                 </div>
                 <div class="hl-color-controls">
+                    ${!isDefaultPreset ? `
                     <div class="hl-color-control-row">
                         <label>배경색:</label>
                         <input type="color" class="hl-bg-color" value="${colorConfig.bg}">
+                        <div style="display: flex; align-items: center; margin-left: 4px;">
+                            <span style="margin-right: 4px;">#</span>
+                            <input type="text" class="hl-hex-input" value="${colorConfig.bg.substring(1)}" maxlength="6">
+                        </div>
                     </div>
+                    ` : ''}
                     <div class="hl-color-control-row">
                         <label>불투명도:</label>
                         <input type="range" class="hl-opacity" min="0" max="100" value="${Math.round(colorConfig.opacity * 100)}">
                         <input type="number" class="hl-opacity-input" min="0" max="100" value="${Math.round(colorConfig.opacity * 100)}">
                         <span>%</span>
                     </div>
+                    ${!isDefaultPreset ? `
                     <div class="hl-color-control-row">
                         <label>글자색:</label>
                         <input type="color" class="hl-text-color" value="${colorConfig.textColor}" ${colorConfig.useDefaultTextColor ? 'disabled' : ''}>
@@ -117,6 +232,7 @@ function initColorCustomizer() {
                             <span class="hl-checkbox-text">원래 색상 사용</span>
                         </label>
                     </div>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -135,21 +251,120 @@ function bindColorCustomizerEvents() {
     $('.hl-opacity-input').off('input');
     $('.hl-text-color').off('input');
     $('.hl-use-default').off('change');
+    $('.hl-hex-input').off('input');
+    $('.hl-preset-tab').off('click');
+    $('.hl-preset-apply-btn').off('click');
+    $('.hl-preset-rename-btn').off('click');
+    $('.hl-quick-color-apply-btn').off('click');
+
+    // 프리셋 탭 클릭 이벤트 (선택만, 적용은 X)
+    $('.hl-preset-tab').on('click', function() {
+        const presetIndex = $(this).data('preset-index');
+        if (presetIndex !== selectedPresetIndex) {
+            selectedPresetIndex = presetIndex;
+            // UI만 업데이트 (탭 강조 + 적용 버튼 표시)
+            initColorCustomizer();
+        }
+    });
+
+    // 프리셋 적용 버튼
+    $('.hl-preset-apply-btn').on('click', function() {
+        if (selectedPresetIndex !== settings.currentPresetIndex) {
+            switchPreset(selectedPresetIndex);
+            // 적용 후 선택 상태 초기화
+            selectedPresetIndex = settings.currentPresetIndex;
+        }
+    });
+
+    // 프리셋 이름 변경 버튼
+    $('.hl-preset-rename-btn').on('click', function() {
+        const preset = settings.colorPresets[selectedPresetIndex];
+        const currentName = preset.name;
+
+        const newName = prompt('프리셋 이름을 입력하세요:', currentName);
+        if (newName && newName.trim() !== '' && newName !== currentName) {
+            preset.name = newName.trim();
+            // 탭 이름 업데이트
+            $(`.hl-preset-tab[data-preset-index="${selectedPresetIndex}"] .hl-preset-tab-name`).text(newName.trim());
+            saveSettingsDebounced();
+            toastr.success('프리셋 이름이 변경되었습니다');
+        }
+    });
+
+    // 빠른 색상 적용 버튼
+    $('.hl-quick-color-apply-btn').on('click', function() {
+        const input = $('.hl-quick-color-field').val().trim();
+        if (!input) {
+            toastr.warning('색상 코드를 입력해주세요');
+            return;
+        }
+
+        // 띄어쓰기로 분리
+        const colorCodes = input.split(/\s+/).filter(code => code.length > 0);
+
+        if (colorCodes.length !== 5) {
+            toastr.error('정확히 5개의 색상 코드를 입력해주세요');
+            return;
+        }
+
+        // 각 색상 코드 검증 및 변환
+        const hexColors = [];
+        for (let i = 0; i < colorCodes.length; i++) {
+            let code = colorCodes[i].replace(/^#/, ''); // # 제거
+
+            // 유효성 검사 (6자리 hex)
+            if (!/^[0-9A-Fa-f]{6}$/.test(code)) {
+                toastr.error(`잘못된 색상 코드: ${colorCodes[i]}`);
+                return;
+            }
+
+            hexColors.push('#' + code.toUpperCase());
+        }
+
+        // 색상 적용
+        const selectedColors = settings.colorPresets[selectedPresetIndex].colors;
+        const oldColors = selectedColors.map(c => c.bg);
+
+        hexColors.forEach((hexColor, index) => {
+            selectedColors[index].bg = hexColor;
+        });
+
+        // 선택된 프리셋이 현재 활성 프리셋이면 하이라이트도 업데이트
+        if (selectedPresetIndex === settings.currentPresetIndex) {
+            hexColors.forEach((hexColor, index) => {
+                settings.customColors[index].bg = hexColor;
+                updateAllHighlightColors(oldColors[index], hexColor);
+            });
+            updateDynamicColorStyles();
+        }
+
+        // UI 새로고침
+        initColorCustomizer();
+        saveSettingsDebounced();
+        toastr.success('색상이 적용되었습니다');
+    });
 
     $('.hl-bg-color').on('input', function() {
         const $item = $(this).closest('.hl-color-item');
         const index = $item.data('index');
-        const oldColor = settings.customColors[index].bg;
+        const selectedColors = settings.colorPresets[selectedPresetIndex].colors;
+        const oldColor = selectedColors[index].bg;
         const newColor = $(this).val();
 
-        // 배경색 업데이트
-        settings.customColors[index].bg = newColor;
+        // 배경색 업데이트 (선택된 프리셋 수정)
+        selectedColors[index].bg = newColor;
 
-        // 기존 하이라이트들의 색상도 함께 업데이트
-        updateAllHighlightColors(oldColor, newColor);
+        // 헥스 인풋도 업데이트
+        $item.find('.hl-hex-input').val(newColor.substring(1));
+
+        // 선택된 프리셋이 현재 활성 프리셋이면 하이라이트도 업데이트
+        if (selectedPresetIndex === settings.currentPresetIndex) {
+            settings.customColors[index].bg = newColor; // 참조 동기화
+            updateAllHighlightColors(oldColor, newColor);
+            updateDynamicColorStyles();
+        }
 
         updateColorPreview($item);
-        updateDynamicColorStyles();
         saveSettingsDebounced();
     });
 
@@ -157,17 +372,25 @@ function bindColorCustomizerEvents() {
         const $item = $(this).closest('.hl-color-item');
         const index = $item.data('index');
         const value = parseInt($(this).val());
-        settings.customColors[index].opacity = value / 100;
+        const selectedColors = settings.colorPresets[selectedPresetIndex].colors;
+
+        selectedColors[index].opacity = value / 100;
+
         $item.find('.hl-opacity-input').val(value);
         updateColorPreview($item);
-        updateDynamicColorStyles();
 
-        // 채팅 내 해당 색상의 모든 하이라이트 업데이트
-        const color = settings.customColors[index].bg;
-        $(`.text-highlight[data-color="${color}"]`).each(function() {
-            const bgColor = getBackgroundColorFromHex(color);
-            $(this).css('background-color', bgColor);
-        });
+        // 선택된 프리셋이 현재 활성 프리셋이면 하이라이트도 업데이트
+        if (selectedPresetIndex === settings.currentPresetIndex) {
+            settings.customColors[index].opacity = value / 100; // 참조 동기화
+            updateDynamicColorStyles();
+
+            // 채팅 내 해당 색상의 모든 하이라이트 업데이트
+            const color = selectedColors[index].bg;
+            $(`.text-highlight[data-color="${color}"]`).each(function() {
+                const bgColor = getBackgroundColorFromHex(color);
+                $(this).css('background-color', bgColor);
+            });
+        }
 
         saveSettingsDebounced();
     });
@@ -182,19 +405,26 @@ function bindColorCustomizerEvents() {
         if (value > 100) value = 100;
         if (isNaN(value)) value = 0;
 
-        settings.customColors[index].opacity = value / 100;
+        const selectedColors = settings.colorPresets[selectedPresetIndex].colors;
+        selectedColors[index].opacity = value / 100;
+
         const $range = $item.find('.hl-opacity');
         $range.val(value);
         $(this).val(value);
         updateColorPreview($item);
-        updateDynamicColorStyles();
 
-        // 채팅 내 해당 색상의 모든 하이라이트 업데이트
-        const color = settings.customColors[index].bg;
-        $(`.text-highlight[data-color="${color}"]`).each(function() {
-            const bgColor = getBackgroundColorFromHex(color);
-            $(this).css('background-color', bgColor);
-        });
+        // 선택된 프리셋이 현재 활성 프리셋이면 하이라이트도 업데이트
+        if (selectedPresetIndex === settings.currentPresetIndex) {
+            settings.customColors[index].opacity = value / 100; // 참조 동기화
+            updateDynamicColorStyles();
+
+            // 채팅 내 해당 색상의 모든 하이라이트 업데이트
+            const color = selectedColors[index].bg;
+            $(`.text-highlight[data-color="${color}"]`).each(function() {
+                const bgColor = getBackgroundColorFromHex(color);
+                $(this).css('background-color', bgColor);
+            });
+        }
 
         saveSettingsDebounced();
     });
@@ -202,9 +432,18 @@ function bindColorCustomizerEvents() {
     $('.hl-text-color').on('input', function() {
         const $item = $(this).closest('.hl-color-item');
         const index = $item.data('index');
-        settings.customColors[index].textColor = $(this).val();
+        const selectedColors = settings.colorPresets[selectedPresetIndex].colors;
+
+        selectedColors[index].textColor = $(this).val();
+
         updateColorPreview($item);
-        updateDynamicColorStyles();
+
+        // 선택된 프리셋이 현재 활성 프리셋이면 하이라이트도 업데이트
+        if (selectedPresetIndex === settings.currentPresetIndex) {
+            settings.customColors[index].textColor = $(this).val(); // 참조 동기화
+            updateDynamicColorStyles();
+        }
+
         saveSettingsDebounced();
     });
 
@@ -212,17 +451,58 @@ function bindColorCustomizerEvents() {
         const $item = $(this).closest('.hl-color-item');
         const index = $item.data('index');
         const checked = $(this).is(':checked');
-        settings.customColors[index].useDefaultTextColor = checked;
+        const selectedColors = settings.colorPresets[selectedPresetIndex].colors;
+
+        selectedColors[index].useDefaultTextColor = checked;
+
         $item.find('.hl-text-color').prop('disabled', checked);
         updateColorPreview($item);
-        updateDynamicColorStyles();
+
+        // 선택된 프리셋이 현재 활성 프리셋이면 하이라이트도 업데이트
+        if (selectedPresetIndex === settings.currentPresetIndex) {
+            settings.customColors[index].useDefaultTextColor = checked; // 참조 동기화
+            updateDynamicColorStyles();
+        }
+
         saveSettingsDebounced();
+    });
+
+    $('.hl-hex-input').on('input', function() {
+        const $item = $(this).closest('.hl-color-item');
+        const index = $item.data('index');
+        let hexValue = $(this).val().replace(/[^0-9A-Fa-f]/g, ''); // 유효한 문자만 허용
+
+        // 6자리 헥스 코드인 경우에만 색상 업데이트
+        if (hexValue.length === 6) {
+            const selectedColors = settings.colorPresets[selectedPresetIndex].colors;
+            const oldColor = selectedColors[index].bg;
+            const newColor = '#' + hexValue.toUpperCase();
+
+            // 배경색 업데이트 (선택된 프리셋 수정)
+            selectedColors[index].bg = newColor;
+
+            // 컬러피커도 업데이트
+            $item.find('.hl-bg-color').val(newColor);
+
+            // 선택된 프리셋이 현재 활성 프리셋이면 하이라이트도 업데이트
+            if (selectedPresetIndex === settings.currentPresetIndex) {
+                settings.customColors[index].bg = newColor; // 참조 동기화
+                updateAllHighlightColors(oldColor, newColor);
+                updateDynamicColorStyles();
+            }
+
+            updateColorPreview($item);
+            saveSettingsDebounced();
+        } else {
+            // 6자리가 아닌 경우 인풋 값만 업데이트 (대문자 변환)
+            $(this).val(hexValue.toUpperCase());
+        }
     });
 }
 
 function updateColorPreview($item) {
     const index = $item.data('index');
-    const colorConfig = settings.customColors[index];
+    const colorConfig = settings.colorPresets[selectedPresetIndex].colors[index];
     const previewBg = hexToRgba(colorConfig.bg, colorConfig.opacity);
     const textColor = colorConfig.useDefaultTextColor ? 'inherit' : colorConfig.textColor;
 
@@ -284,60 +564,23 @@ function updateAllHighlightColors(oldColor, newColor) {
     }
 }
 
-function resetColors() {
-    if (!confirm('색상 설정을 초기화하시겠습니까?')) return;
-
-    // 기존 색상 -> 인덱스 매핑
-    const oldColors = settings.customColors.map(c => c.bg);
-
-    settings.customColors = JSON.parse(JSON.stringify(DEFAULT_COLORS));
-    initColorCustomizer();
-    updateDynamicColorStyles();
-
-    // 각 하이라이트의 색상을 새 팔레트로 업데이트
-    for (const charId in settings.highlights) {
-        for (const chatFile in settings.highlights[charId]) {
-            const chatData = settings.highlights[charId][chatFile];
-            if (chatData && chatData.highlights) {
-                chatData.highlights.forEach(hl => {
-                    const oldIndex = oldColors.indexOf(hl.color);
-                    if (oldIndex !== -1) {
-                        hl.color = settings.customColors[oldIndex].bg;
-                    } else {
-                        // 색상을 찾지 못한 경우 첫 번째 색상으로 폴백
-                        hl.color = settings.customColors[0].bg;
-                    }
-                });
-            }
-        }
-    }
-
-    // 채팅 내 모든 하이라이트 제거하고 다시 그리기
-    $('.text-highlight').each(function() {
-        $(this).contents().unwrap();
-    });
-
-    renderView(); // 패널에 바뀐 색상 적용
-    restoreHighlightsInChat(); // 새 색상으로 다시 그리기
-    saveSettingsDebounced();
-    toastr.success('색상 설정이 초기화되었습니다');
-}
-
 function exportColors() {
+    const currentPreset = settings.colorPresets[settings.currentPresetIndex];
     const data = {
-        version: '1.0',
-        colors: settings.customColors
+        version: '2.0',
+        presetName: currentPreset.name,
+        colors: currentPreset.colors
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `highlighter_colors_${Date.now()}.json`;
+    a.download = `highlighter_preset_${currentPreset.name}_${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
 
-    toastr.success('색상 설정이 백업되었습니다');
+    toastr.success(`${currentPreset.name} 프리셋이 백업되었습니다`);
 }
 
 function importColors(e) {
@@ -360,10 +603,23 @@ function importColors(e) {
                 }
             });
 
-            // 기존 색상 -> 인덱스 매핑
-            const oldColors = settings.customColors.map(c => c.bg);
+            const currentIndex = settings.currentPresetIndex;
+            const currentPreset = settings.colorPresets[currentIndex];
 
+            // 기본 프리셋은 불러오기 불가
+            if (currentPreset.isDefault) {
+                toastr.warning('기본 프리셋은 색상을 불러올 수 없습니다. 다른 프리셋을 선택해주세요.');
+                $(e.target).val('');
+                return;
+            }
+
+            // 기존 색상 -> 인덱스 매핑
+            const oldColors = currentPreset.colors.map(c => c.bg);
+
+            // 현재 프리셋의 색상 업데이트
+            currentPreset.colors = data.colors;
             settings.customColors = data.colors;
+
             initColorCustomizer();
             updateDynamicColorStyles();
 
@@ -393,7 +649,7 @@ function importColors(e) {
             renderView(); // 패널에 바뀐 색상 적용
             restoreHighlightsInChat(); // 새 색상으로 다시 그리기
             saveSettingsDebounced();
-            toastr.success('색상 설정을 불러왔습니다');
+            toastr.success(`${currentPreset.name}에 색상을 불러왔습니다`);
         } catch (error) {
             toastr.error('색상 설정 불러오기 실패: ' + error.message);
         }
@@ -420,6 +676,22 @@ const DEFAULT_COLORS = [
     { bg: '#FFD4E5', opacity: 0.8, textColor: '#222', useDefaultTextColor: false }
 ];
 
+// 기본 프리셋 (색상 고정, 불투명도만 커스터마이징 가능)
+const DEFAULT_PRESET = {
+    name: '기본',
+    isDefault: true,
+    colors: JSON.parse(JSON.stringify(DEFAULT_COLORS))
+};
+
+// 빈 유저 프리셋 생성 함수
+function createEmptyPreset(index) {
+    return {
+        name: `프리셋 ${index}`,
+        isDefault: false,
+        colors: JSON.parse(JSON.stringify(DEFAULT_COLORS))
+    };
+}
+
 const GITHUB_REPO = 'saving3899/SillyTavern-Highlighter'; // GitHub 저장소
 const UPDATE_CHECK_CACHE_KEY = 'highlighter_update_check';
 const UPDATE_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24시간 (밀리초)
@@ -440,7 +712,9 @@ const DEFAULT_SETTINGS = {
     highlights: {},
     characterMemos: {}, // 캐릭터별 메모 { charId: "메모 내용" }
     chatMemos: {}, // 채팅별 메모 { "charId_chatFile": "메모 내용" }
-    customColors: null, // 커스텀 색상 배열
+    customColors: null, // 커스텀 색상 배열 (하위 호환성 유지용)
+    colorPresets: null, // 색상 프리셋 배열 [기본, 프리셋1, 프리셋2, 프리셋3, 프리셋4, 프리셋5]
+    currentPresetIndex: 0, // 현재 활성화된 프리셋 인덱스 (0: 기본)
     sortOptions: {
         characters: 'modified', // 'modified', 'name'
         chats: 'modified', // 'modified', 'name'
@@ -485,13 +759,50 @@ function validateAndRepairSettings(data) {
         if (data.showFloatingBtn === undefined) data.showFloatingBtn = true;
         if (data.showWandButton === undefined) data.showWandButton = true;
         if (data.alwaysHighlightMode === undefined) data.alwaysHighlightMode = false;
-        if (!data.customColors) data.customColors = JSON.parse(JSON.stringify(DEFAULT_COLORS));
         if (!data.sortOptions) {
             data.sortOptions = {
                 characters: 'modified',
                 chats: 'modified',
                 highlights: 'created'
             };
+        }
+
+        // 프리셋 시스템 마이그레이션
+        if (!data.colorPresets) {
+            console.log('[SillyTavern-Highlighter] Migrating to preset system');
+
+            // 기존 customColors가 있으면 프리셋 1번에 저장
+            const existingColors = data.customColors || JSON.parse(JSON.stringify(DEFAULT_COLORS));
+
+            data.colorPresets = [
+                JSON.parse(JSON.stringify(DEFAULT_PRESET)), // 0: 기본 프리셋
+                {
+                    name: '프리셋 1',
+                    isDefault: false,
+                    colors: JSON.parse(JSON.stringify(existingColors))
+                },
+                createEmptyPreset(2),
+                createEmptyPreset(3),
+                createEmptyPreset(4),
+                createEmptyPreset(5)
+            ];
+
+            // 기존 사용자는 프리셋 1번을 활성화 (기존 색상 유지)
+            data.currentPresetIndex = data.customColors ? 1 : 0;
+
+            console.log(`[SillyTavern-Highlighter] Migrated to preset ${data.currentPresetIndex}`);
+        }
+
+        // currentPresetIndex 기본값 설정
+        if (data.currentPresetIndex === undefined) {
+            data.currentPresetIndex = 0;
+        }
+
+        // customColors는 현재 활성 프리셋의 colors를 가리키도록 (하위 호환성)
+        if (data.colorPresets && data.colorPresets[data.currentPresetIndex]) {
+            data.customColors = data.colorPresets[data.currentPresetIndex].colors;
+        } else {
+            data.customColors = JSON.parse(JSON.stringify(DEFAULT_COLORS));
         }
 
         // highlights 데이터 경고만 출력 (삭제하지 않음 - 데이터 보존)
@@ -4393,7 +4704,6 @@ function showUpdateNotification(latestVersion) {
         // 색상 커스터마이저 초기화
         initColorCustomizer();
 
-        $('#hl-reset-colors').on('click', resetColors);
         $('#hl-export-colors').on('click', exportColors);
         $('#hl-import-colors').on('click', () => $('#hl-color-import-input').click());
         $('#hl-color-import-input').on('change', importColors);
