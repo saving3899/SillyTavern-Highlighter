@@ -3995,7 +3995,9 @@ async function checkForUpdates(forceCheck = false) {
                 console.log('[SillyTavern-Highlighter] Using session cached update check');
                 // ⭐ 캐시된 버전과 현재 버전 비교 (업데이트 후 캐시 무효화)
                 const comparison = compareVersions(sessionData.latestVersion, EXTENSION_VERSION);
-                return comparison > 0 ? sessionData.latestVersion : null;
+                return comparison > 0 ?
+                    { version: sessionData.latestVersion, updateMessage: sessionData.updateMessage || '' } :
+                    { version: null, updateMessage: sessionData.updateMessage || '' };
             }
 
             // localStorage 캐시 확인 (24시간마다만 체크)
@@ -4011,7 +4013,9 @@ async function checkForUpdates(forceCheck = false) {
                     const hasUpdate = comparison > 0;
                     // sessionStorage에도 저장 (세션 내 중복 체크 방지)
                     sessionStorage.setItem(UPDATE_CHECK_CACHE_KEY, JSON.stringify(cacheData));
-                    return hasUpdate ? cacheData.latestVersion : null;
+                    return hasUpdate ?
+                        { version: cacheData.latestVersion, updateMessage: cacheData.updateMessage || '' } :
+                        { version: null, updateMessage: cacheData.updateMessage || '' };
                 }
             }
         }
@@ -4056,6 +4060,7 @@ async function checkForUpdates(forceCheck = false) {
         const cacheData = {
             timestamp: Date.now(),
             latestVersion: latestVersion,
+            updateMessage: remoteManifest.updateMessage || '',
             hasUpdate: hasUpdate
         };
 
@@ -4067,10 +4072,11 @@ async function checkForUpdates(forceCheck = false) {
 
         if (hasUpdate) {
             console.log(`[SillyTavern-Highlighter] ✨ Update available: ${latestVersion}`);
-            return latestVersion;
+            return { version: latestVersion, updateMessage: remoteManifest.updateMessage || '' };
         } else {
             console.log('[SillyTavern-Highlighter] You are up to date!');
-            return null;
+            const localManifest = await $.get(`${extensionFolderPath}/manifest.json`);
+            return { version: null, updateMessage: localManifest.updateMessage || '' };
         }
 
     } catch (error) {
@@ -4186,16 +4192,6 @@ function showUpdateNotification(latestVersion) {
         const html = await $.get(`${extensionFolderPath}/settings.html`);
         $('#extensions_settings2').append(html);
 
-        // manifest.json에서 버전 및 업데이트 메시지 읽기
-        try {
-            const manifest = await $.get(`${extensionFolderPath}/manifest.json`);
-            $('#hl-current-version').text(manifest.version || '1.0.97');
-            $('#hl-update-message').text(manifest.updateMessage || '업데이트 정보 없음');
-        } catch (error) {
-            console.warn('[SillyTavern-Highlighter] Failed to load manifest:', error);
-            $('#hl-update-message').text('업데이트 정보를 불러올 수 없습니다.');
-        }
-
         $('#hl_setting_delete_mode').val(settings.deleteMode).on('change', function () {
             settings.deleteMode = $(this).val();
             saveSettingsDebounced();
@@ -4256,22 +4252,28 @@ function showUpdateNotification(latestVersion) {
                 localStorage.removeItem(UPDATE_CHECK_CACHE_KEY);
                 sessionStorage.removeItem(UPDATE_CHECK_CACHE_KEY);
 
-                const latestVersion = await checkForUpdates(true); // 강제 체크
+                const updateInfo = await checkForUpdates(true); // 강제 체크
 
-                if (latestVersion) {
+                if (updateInfo && updateInfo.version) {
                     // 업데이트 있음
+                    const updateMessage = updateInfo.updateMessage ?
+                        `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255, 107, 107, 0.2); font-size: 12px; color: #666;">
+                            업데이트 예정 내용: ${updateInfo.updateMessage}
+                        </div>` : '';
+
                     $status.css({
                         'background': 'rgba(255, 107, 107, 0.1)',
                         'border': '1px solid rgba(255, 107, 107, 0.3)',
                         'color': '#ff6b6b'
                     }).html(`
-                        <i class="fa-solid fa-circle-exclamation"></i>
-                        <strong>새 버전 ${latestVersion}이(가) 출시되었습니다!</strong><br>
+                        <i class="fa-solid fa-circle-exclamation" style="margin-right: 2px;></i>
+                        <strong>새 버전 ${updateInfo.version}이(가) 출시되었습니다!</strong><br>
                         <span style="font-size: 12px !important;">확장 프로그램 관리에서 업데이트할 수 있습니다.</span>
+                        ${updateMessage}
                     `).show();
 
                     // 헤더에 UPDATE! 배지 표시
-                    showUpdateNotification(latestVersion);
+                    showUpdateNotification(updateInfo.version);
                 } else {
                     // 최신 버전
                     $status.css({
@@ -4279,7 +4281,7 @@ function showUpdateNotification(latestVersion) {
                         'border': '1px solid rgba(76, 175, 80, 0.3)',
                         'color': '#4caf50'
                     }).html(`
-                        <i class="fa-solid fa-circle-check"></i>
+                        <i class="fa-solid fa-circle-check" style="margin-right: 2px;"></i>
                         <strong>최신 버전을 사용 중입니다!</strong> (v${EXTENSION_VERSION})
                     `).show();
                 }
@@ -4353,9 +4355,9 @@ function showUpdateNotification(latestVersion) {
     // ⭐ 업데이트 체크 (비동기, 백그라운드 실행)
     setTimeout(async () => {
         try {
-            const latestVersion = await checkForUpdates();
-            if (latestVersion) {
-                showUpdateNotification(latestVersion);
+            const updateInfo = await checkForUpdates();
+            if (updateInfo && updateInfo.version) {
+                showUpdateNotification(updateInfo.version);
             }
         } catch (error) {
             console.warn('[SillyTavern-Highlighter] Update check failed silently:', error);
