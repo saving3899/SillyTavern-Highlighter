@@ -313,12 +313,12 @@
 }
 
 .highlighter-content::-webkit-scrollbar {
-    width: 6px !important;
+    display: none !important;
 }
 
-.highlighter-content::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2) !important;
-    border-radius: 3px !important;
+.highlighter-content {
+    -ms-overflow-style: none !important;  /* IE and Edge */
+    scrollbar-width: none !important;  /* Firefox */
 }
 
 /* 리스트 아이템 */
