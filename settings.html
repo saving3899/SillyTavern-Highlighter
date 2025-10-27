@@ -16,11 +16,11 @@
                         <option value="delete">형광펜도 삭제</option>
                     </select>
                 </label>
-                <small style="display: block; margin: 5px 0 15px 0;">
+                <small style="display: block; margin: 5px 0 10px 0;">
                     보관 모드는 채팅 삭제 후에도 형광펜을 유지합니다.
                 </small>
 
-                <label>
+                <label style="margin-bottom: 16px !important;">
                     플로팅 버튼 위치:
                     <select id="hl_setting_button_position" class="text_pole">
                         <option value="bottom-right">우측 하단</option>
@@ -30,21 +30,35 @@
                     </select>
                 </label>
 
-                <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px; cursor: pointer; user-select: none;">
-                    <input type="checkbox" id="hl_setting_show_floating_btn" checked>
-                    <span style="color: #333 !important; font-size: 14px !important;">플로팅 버튼 표시</span>
-                </label>
-                <small style="display: block; margin: 5px 0 0 0; color: #666;">
-                    체크 해제 시 플로팅 버튼이 숨겨지며, 요술봉 메뉴에서만 접근할 수 있습니다.
-                </small>
+                <div style="margin-bottom: 16px !important;">
+                    <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="hl_setting_show_floating_btn" checked style="margin-left: 0 !important;">
+                        <span style="color: #333 !important; font-size: 14px !important;">플로팅 버튼 표시</span>
+                    </label>
+                    <small style="display: block; margin: 0; color: #666;">
+                        체크 해제 시 플로팅 버튼이 숨겨지며, 요술봉 메뉴에서만 접근할 수 있습니다.
+                    </small>
+                </div>
 
-                <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px; cursor: pointer; user-select: none;">
-                    <input type="checkbox" id="hl_setting_always_highlight_mode">
-                    <span style="color: #333 !important; font-size: 14px !important;">형광펜 모드 항상 활성화</span>
-                </label>
-                <small style="display: block; margin: 5px 0 0 0; color: #666;">
-                    체크 시 형광펜 모드가 항상 활성화되며, 비활성화할 수 없습니다.
-                </small>
+                <div style="margin-bottom: 16px !important;">
+                    <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="hl_setting_show_wand_button" checked style="margin-left: 0 !important;">
+                        <span style="color: #333 !important; font-size: 14px !important;">요술봉 메뉴 버튼 표시</span>
+                    </label>
+                    <small style="display: block; margin: 0; color: #666;">
+                        체크 해제 시 요술봉 메뉴에서 형광펜 버튼이 숨겨집니다.
+                    </small>
+                </div>
+
+                <div>
+                    <label style="display: flex; align-items: center; gap: 8px; margin-top: 12px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="hl_setting_always_highlight_mode" style="margin-left: 0 !important;">
+                        <span style="color: #333 !important; font-size: 14px !important;">형광펜 모드 항상 활성화</span>
+                    </label>
+                    <small style="display: block; margin: 0; color: #666;">
+                        체크 시 형광펜 모드가 항상 활성화되며, 비활성화할 수 없습니다.
+                    </small>
+                </div>
             </div>
 
             <hr style="border: none; border-top: 1px dashed #ddd; margin: 20px 0;">
@@ -164,7 +178,7 @@
 .highlighter-settings label {
     display: block;
     font-size: 14px;
-    margin-bottom: 8px;
+    margin-bottom: 0px !important;
     color: #555;
     font-weight: 500;
 }
@@ -176,6 +190,7 @@
     border-radius: 8px;
     font-size: 14px !important;
     margin-top: 5px;
+    margin-bottom: 0px !important;
     background: #fff;
     transition: border-color 0.2s, box-shadow 0.2s;
     font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;

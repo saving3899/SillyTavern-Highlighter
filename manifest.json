@@ -6,8 +6,8 @@
     "js": "index.js",
     "css": "style.css",
     "author": "saving3899",
-    "version": "1.0.98",
-    "updateMessage": "동일 이름 캐릭터 정확한 구분, 캐릭터/채팅 메모 기능, 메시지 이동 속도 개선, 드래그 최적화",
+    "version": "1.0.99",
+    "updateMessage": "동일 이름 캐릭터 정확한 구분, 캐릭터/채팅 메모 기능, 메시지 이동 속도 개선, 드래그 최적화, 요술봉 메뉴 버튼 온/오프 설정 추가",
     "homePage": "https://github.com/saving3899/SillyTavern-Highlighter",
     "description": "이북앱 스타일 형광펜 모드 / 깡갤 대피소 갤러리에서만 배포됨"
 }

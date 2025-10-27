@@ -43,6 +43,9 @@ async function addToWandMenu() {
 
         const extensionsMenu = $("#extensionsMenu");
         if (extensionsMenu.length > 0) {
+            // 기존 버튼이 있으면 제거 후 추가
+            $("#highlighter_wand_button, #highlighter_panel_button").remove();
+
             extensionsMenu.append(buttonHtml);
 
             // 형광펜 모드 버튼 클릭 이벤트
@@ -54,12 +57,24 @@ async function addToWandMenu() {
             $("#highlighter_panel_button").on("click", function() {
                 openPanel();
             });
+
+            // 설정에 따라 표시/숨김
+            updateWandMenuVisibility();
         } else {
             setTimeout(addToWandMenu, 1000);
         }
     } catch (error) {
         // 버튼 로드 실패시 재시도
         setTimeout(addToWandMenu, 1000);
+    }
+}
+
+// 요술봉 메뉴 버튼 표시/숨김
+function updateWandMenuVisibility() {
+    if (settings.showWandButton) {
+        $("#highlighter_wand_button, #highlighter_panel_button").show();
+    } else {
+        $("#highlighter_wand_button, #highlighter_panel_button").hide();
     }
 }
 
@@ -419,6 +434,7 @@ const DEFAULT_SETTINGS = {
     darkMode: false,
     buttonPosition: 'bottom-right',
     showFloatingBtn: true, // 플로팅 버튼 표시 여부
+    showWandButton: true, // 요술봉 메뉴 버튼 표시 여부
     alwaysHighlightMode: false, // 형광펜 모드 항상 활성화
     panelPosition: null, // { top, left } 저장
     highlights: {},
@@ -465,6 +481,7 @@ function validateAndRepairSettings(data) {
         if (data.darkMode === undefined) data.darkMode = false;
         if (!data.buttonPosition) data.buttonPosition = 'bottom-right';
         if (data.showFloatingBtn === undefined) data.showFloatingBtn = true;
+        if (data.showWandButton === undefined) data.showWandButton = true;
         if (data.alwaysHighlightMode === undefined) data.alwaysHighlightMode = false;
         if (!data.customColors) data.customColors = JSON.parse(JSON.stringify(DEFAULT_COLORS));
         if (!data.sortOptions) {
@@ -4184,7 +4201,7 @@ function showUpdateNotification(latestVersion) {
 
     createHighlighterUI();
 
-    // 요술봉 메뉴에 버튼 추가
+    // 요술봉 메뉴에 버튼 추가 (항상 추가하되, 설정에 따라 표시/숨김)
     addToWandMenu();
 
     try {
@@ -4205,6 +4222,21 @@ function showUpdateNotification(latestVersion) {
         $('#hl_setting_show_floating_btn').prop('checked', settings.showFloatingBtn !== false).on('change', function () {
             settings.showFloatingBtn = $(this).is(':checked');
             applyButtonPosition();
+            saveSettingsDebounced();
+        });
+
+        $('#hl_setting_show_wand_button').prop('checked', settings.showWandButton !== false).on('change', function () {
+            settings.showWandButton = $(this).is(':checked');
+
+            // 요술봉 메뉴 버튼 표시/숨김
+            updateWandMenuVisibility();
+
+            if (settings.showWandButton) {
+                toastr.success('요술봉 메뉴 버튼이 표시됩니다');
+            } else {
+                toastr.info('요술봉 메뉴 버튼이 숨겨집니다');
+            }
+
             saveSettingsDebounced();
         });
 
