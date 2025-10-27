@@ -1412,8 +1412,11 @@ function renderChatList($container, characterId) {
     chatFiles.forEach(chatFile => {
         const chatData = chats[chatFile];
         const count = chatData.highlights.length;
-        const last = chatData.highlights[chatData.highlights.length - 1];
-        const preview = last ? last.text.substring(0, 50) + (last.text.length > 50 ? '...' : '') : '';
+        // timestamp 기준 최신 형광펜 찾기 (배열 순서가 아닌 실제 생성 시간 기준)
+        const latest = chatData.highlights.reduce((prev, current) => {
+            return (current.timestamp > prev.timestamp) ? current : prev;
+        });
+        const preview = latest ? latest.text.substring(0, 50) + (latest.text.length > 50 ? '...' : '') : '';
         const memoKey = `${characterId}_${chatFile}`;
         const memo = settings.chatMemos?.[memoKey] || '';
         const memoDisplay = memo ? `<span class="hl-memo">${memo}</span>` : '';
