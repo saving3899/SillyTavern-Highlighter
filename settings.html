@@ -87,9 +87,6 @@
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 16px;">
-                    <button id="hl-reset-colors" class="menu_button" style="flex: 1;">
-                        <i class="fa-solid fa-rotate-left"></i> 색상 초기화
-                    </button>
                     <button id="hl-export-colors" class="menu_button" style="flex: 1;">
                         <i class="fa-solid fa-download"></i> 색상 백업
                     </button>
@@ -245,6 +242,207 @@
     overflow: visible !important;
 }
 
+/* 프리셋 탭 */
+.hl-preset-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.hl-preset-tab {
+    flex: 1;
+    min-width: 80px;
+    padding: 8px 0px;
+    background: #f0f0f0;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    color: #555;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.hl-preset-tab:hover {
+    background: #e8e8e8;
+    border-color: #ccc;
+}
+
+.hl-preset-tab.active {
+    background: #FFE4B5;
+    border-color: #ffc18f;
+    color: #8B7355;
+}
+
+.hl-preset-tab.selected {
+    background: #fff3e0;
+    border-color: #ffcc80;
+    color: #f57c00;
+}
+
+.hl-preset-tab-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    padding: 0 8px;
+}
+
+html body div.highlighter-settings div.settings-section div#hl-color-customizer div.hl-preset-tabs div.hl-preset-tab span.hl-preset-tab-name {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+    line-height: 1.4rem !important;
+    -webkit-text-stroke: 0 !important;
+}
+
+html body div.highlighter-settings div.settings-section div#hl-color-customizer div.hl-preset-tabs div.hl-preset-tab.active span.hl-preset-tab-name {
+    font-weight: 600 !important;
+    -webkit-text-stroke: 0 !important;
+}
+
+html body div.highlighter-settings div.settings-section div#hl-color-customizer div.hl-preset-tabs div.hl-preset-tab.selected span.hl-preset-tab-name {
+    font-weight: 500 !important;
+    -webkit-text-stroke: 0 !important;
+}
+
+/* 프리셋 관리 버튼 */
+.hl-preset-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 12px;
+}
+
+.hl-preset-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.hl-preset-buttons {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.hl-preset-apply-btn,
+.hl-preset-rename-btn {
+    padding: 6px 12px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+}
+
+.hl-preset-apply-btn {
+    background: #fff3e0;
+    border-color: #ffcc80;
+    color: #f57c00;
+    font-weight: 500;
+}
+
+.hl-preset-apply-btn:hover {
+    background: #ffe0b2;
+    border-color: #ffb74d;
+}
+
+.hl-preset-rename-btn:hover {
+    background: #e9ecef;
+    border-color: #ccc;
+}
+
+.hl-preset-apply-btn i,
+.hl-preset-rename-btn i {
+    margin-right: 4px;
+    font-size: 11px;
+}
+
+/* 빠른 색상 적용 */
+.hl-quick-color-input {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+.hl-quick-color-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hl-quick-color-input label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.hl-quick-color-field {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px !important;
+    background: #fff;
+    box-sizing: border-box;
+    color: #505050;
+}
+
+.hl-quick-color-field:focus {
+    outline: none;
+    border-color: #FFE4B5;
+    box-shadow: 0 0 0 3px rgba(255, 228, 181, 0.3);
+}
+
+.hl-quick-color-hint {
+    font-size: 12px;
+    color: #777;
+    line-height: 1.4;
+    margin: 0 0 4px 0;
+    text-align: center;
+}
+
+.hl-quick-color-apply-btn {
+    padding: 6px 20px;
+    background: #FFE4B5;
+    border: 1px solid #ffc18f;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #222;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+}
+
+.hl-quick-color-apply-btn:hover {
+    background: #ffd89b;
+    border-color: #ffb74d;
+}
+
 .hl-color-item {
     display: flex;
     flex-direction: column;
@@ -331,6 +529,24 @@
 }
 
 .hl-color-control-row input[type="number"]:focus {
+    outline: none;
+    border-color: #FFE4B5;
+    box-shadow: 0 0 0 3px rgba(255, 228, 181, 0.5);
+}
+
+.hl-color-control-row input.hl-hex-input {
+    width: 60px;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px !important;
+    text-align: center;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+    color: #333 !important;
+    text-transform: uppercase;
+}
+
+.hl-color-control-row input.hl-hex-input:focus {
     outline: none;
     border-color: #FFE4B5;
     box-shadow: 0 0 0 3px rgba(255, 228, 181, 0.5);
@@ -433,14 +649,13 @@ body .highlighter-settings .settings-section > div button.menu_button::before {
     background-color: none !important;
 }
 
-body .highlighter-settings .settings-section > div button#hl-reset-colors,
 body .highlighter-settings .settings-section > div button#hl-export-colors,
 body .highlighter-settings .settings-section > div button#hl-import-colors,
 body .highlighter-settings .settings-section button#hl-check-update-btn {
     font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
     font-size: 13px !important;
     color: #333 !important;
-    width: calc(calc(100% / 3) - 3px) !important;
+    width: calc(calc(100% / 2) - 5px) !important;
     height: 33px !important;
     min-width: auto !important;
     padding: none !important;
@@ -449,7 +664,6 @@ body .highlighter-settings .settings-section button#hl-check-update-btn {
     background-color: #f8f9fa !important;
 }
 
-body .highlighter-settings .settings-section > div button#hl-reset-colors:hover,
 body .highlighter-settings .settings-section > div button#hl-export-colors:hover,
 body .highlighter-settings .settings-section > div button#hl-import-colors:hover,
 body .highlighter-settings .settings-section button#hl-check-update-btn:hover {
@@ -458,7 +672,6 @@ body .highlighter-settings .settings-section button#hl-check-update-btn:hover {
     transform: none !important;
 }
 
-body .highlighter-settings .settings-section > div button#hl-reset-colors i,
 body .highlighter-settings .settings-section > div button#hl-export-colors i,
 body .highlighter-settings .settings-section > div button#hl-import-colors i,
 body .highlighter-settings .settings-section button#hl-check-update-btn i {
