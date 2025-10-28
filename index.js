@@ -238,8 +238,8 @@ function initColorCustomizer() {
                 <label>빠른 색상 적용</label>
                 <button class="hl-quick-color-apply-btn">적용</button>
             </div>
-            <input type="text" class="hl-quick-color-field" value="${colors.map(c => c.bg.substring(1)).join(' ')}">
-            <small class="hl-quick-color-hint">5개의 HEX 색상 코드를 띄어쓰기로 구분하여 입력하세요</small>
+            <input type="text" class="hl-quick-color-field" placeholder="#FAEECB #F0E6AE #EEF1E2 #F1D2C6 #BAD7D0" value="${colors.map(c => c.bg.substring(1)).join(' ')}">
+            <small class="hl-quick-color-hint">5개의 HEX 색상 코드를 띄어쓰기로 구분<br>(#을 붙여도 입력 가능)</small>
         </div>
         ` : ''}
     `;
@@ -1921,6 +1921,7 @@ function getMessageLabel(mesId) {
 // ⭐ 모바일 터치 이벤트 안정화를 위한 변수
 let touchSelectionTimer = null;
 let lastTouchEnd = 0;
+let selectionChangeTimer = null;  // ⭐ Android용 selectionchange 디바운싱 타이머
 
 function enableHighlightMode() {
     // 이벤트 위임 방식으로 변경 - 동적으로 로드되는 메시지에도 작동
@@ -2022,15 +2023,57 @@ function enableHighlightMode() {
             setTimeout(processSelection, delay);
         }
     });
+
+    // ⭐ Android용 selectionchange 이벤트 추가
+    // Android에서는 텍스트 선택 핸들 드래그 시 touchend가 발생하지 않을 수 있음
+    $(document).off('selectionchange.hl').on('selectionchange.hl', function () {
+        // 디바운싱: 선택이 완료된 후에만 처리
+        if (selectionChangeTimer) {
+            clearTimeout(selectionChangeTimer);
+        }
+
+        selectionChangeTimer = setTimeout(() => {
+            try {
+                const sel = window.getSelection();
+                if (!sel || sel.rangeCount === 0) return;
+
+                const text = sel.toString().trim();
+                if (text.length < 2) return; // 너무 짧으면 무시
+
+                // 선택된 텍스트가 .mes_text 내부에 있는지 확인
+                const range = sel.getRangeAt(0);
+                const container = range.commonAncestorContainer;
+                const mesTextElement = $(container).closest('.mes_text')[0];
+
+                if (!mesTextElement) return;
+
+                // 선택 영역의 중앙 좌표 계산
+                const rangeRect = range.getBoundingClientRect();
+                const pageX = rangeRect.left + rangeRect.width / 2 + window.scrollX;
+                const pageY = rangeRect.bottom + window.scrollY;
+
+                showColorMenu(pageX, pageY, text, range, mesTextElement);
+            } catch (error) {
+                console.warn('[SillyTavern-Highlighter] Error in selectionchange:', error);
+            }
+        }, 300); // 300ms 디바운싱
+    });
 }
 
 function disableHighlightMode() {
     $(document).off('mouseup.hl touchend.hl', '.mes_text');
+    $(document).off('selectionchange.hl'); // ⭐ Android용 selectionchange 이벤트 제거
 
     // ⭐ 대기 중인 터치 타이머 제거
     if (touchSelectionTimer) {
         clearTimeout(touchSelectionTimer);
         touchSelectionTimer = null;
+    }
+
+    // ⭐ selectionchange 타이머 제거
+    if (selectionChangeTimer) {
+        clearTimeout(selectionChangeTimer);
+        selectionChangeTimer = null;
     }
 }
 
