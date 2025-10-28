@@ -103,10 +103,23 @@ function switchPreset(presetIndex) {
     const oldColors = settings.colorPresets[oldPresetIndex].colors;
     const newColors = settings.colorPresets[presetIndex].colors;
 
+    console.log('[DEBUG] Switching preset:', {
+        from: oldPresetIndex,
+        to: presetIndex,
+        oldColors: oldColors.map(c => c.bg),
+        newColors: newColors.map(c => c.bg)
+    });
+
     // 색상 매핑 테이블 생성 (이전 프리셋 hex -> colorIndex 추출용)
     const colorToIndexMap = {};
     oldColors.forEach((oldColor, index) => {
         colorToIndexMap[oldColor.bg] = index;
+    });
+
+    // 새 프리셋의 색상 -> 인덱스 맵 생성 (colorIndex 업데이트용)
+    const newColorToIndexMap = {};
+    newColors.forEach((newColor, index) => {
+        newColorToIndexMap[newColor.bg] = index;
     });
 
     // 모든 하이라이트의 색상을 새 프리셋으로 매핑
@@ -115,15 +128,33 @@ function switchPreset(presetIndex) {
             const chatData = settings.highlights[charId][chatFile];
             if (chatData && chatData.highlights) {
                 chatData.highlights.forEach(hl => {
-                    // colorIndex가 있으면 인덱스 기반 매핑 (정확함)
-                    if (hl.colorIndex !== undefined && newColors[hl.colorIndex]) {
-                        hl.color = newColors[hl.colorIndex].bg;
-                    }
-                    // colorIndex가 없으면 색상 코드로 인덱스 찾기 (하위 호환성)
-                    else if (colorToIndexMap[hl.color] !== undefined) {
-                        const index = colorToIndexMap[hl.color];
-                        hl.colorIndex = index; // 마이그레이션: 인덱스 추가
-                        hl.color = newColors[index].bg;
+                    const oldColor = hl.color;
+                    const savedColorIndex = hl.colorIndex;
+
+                    // ✅ 현재 색상이 현재(old) 프리셋에서 실제로 몇 번 인덱스인지 찾기
+                    const actualOldIndex = colorToIndexMap[hl.color];
+
+                    if (actualOldIndex !== undefined) {
+                        // 같은 인덱스 위치의 새 프리셋 색상으로 매핑
+                        const newColor = newColors[actualOldIndex].bg;
+                        hl.color = newColor;
+
+                        // 새 색상이 새 프리셋에서 몇 번 인덱스인지 찾아서 저장
+                        const actualNewIndex = newColorToIndexMap[newColor];
+                        if (actualNewIndex !== undefined) {
+                            hl.colorIndex = actualNewIndex;
+                        }
+
+                        console.log('[DEBUG] Color mapping:', {
+                            hlId: hl.id,
+                            oldColor,
+                            savedColorIndex,
+                            actualOldIndex,
+                            newColor: hl.color,
+                            newColorIndex: hl.colorIndex
+                        });
+                    } else {
+                        console.warn('[DEBUG] Color not found in old preset:', hl.color);
                     }
                 });
             }
