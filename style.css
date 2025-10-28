@@ -893,6 +893,10 @@
     border-top: 1px solid #f0f0f0 !important;
 }
 
+#highlight-context-menu.dark-mode .hl-context-colors {
+    border-top: 1px solid #444444 !important;
+}
+
 .hl-context-color-btn {
     width: 28px !important;
     height: 28px !important;
