@@ -951,42 +951,29 @@ function findCharacterByKey(key) {
 function migrateSettings(data) {
     try {
         const currentVersion = data.version || null;
+        console.log(`[SillyTavern-Highlighter] Running migration from ${currentVersion || 'unknown'} to ${EXTENSION_VERSION}`);
 
-        // ⭐ v1.1.14: 모든 사용자에게 한 번은 경고 모달 표시
-        if (data.migrationWarningShown === undefined) {
-            data.migrationWarningShown = false; // 모달을 보여줘야 함
-            console.log('[SillyTavern-Highlighter] First time on v1.1.14+, will show migration warning modal');
-        }
-
-        // 버전이 없거나 1.0.0 미만인 경우 마이그레이션
-        if (!currentVersion || currentVersion !== EXTENSION_VERSION) {
-            console.log(`[SillyTavern-Highlighter] Migrating from ${currentVersion || 'pre-1.0.0'} to ${EXTENSION_VERSION}`);
-
-            // textOffset 필드 추가 (없으면 0으로)
-            for (const charId in data.highlights) {
-                for (const chatFile in data.highlights[charId]) {
-                    const chatData = data.highlights[charId][chatFile];
-                    if (chatData && Array.isArray(chatData.highlights)) {
-                        chatData.highlights.forEach(hl => {
-                            if (hl && hl.textOffset === undefined) {
-                                hl.textOffset = 0; // 기본값
-                            }
-                        });
-                    }
+        // textOffset 필드 추가 (없으면 0으로)
+        for (const charId in data.highlights) {
+            for (const chatFile in data.highlights[charId]) {
+                const chatData = data.highlights[charId][chatFile];
+                if (chatData && Array.isArray(chatData.highlights)) {
+                    chatData.highlights.forEach(hl => {
+                        if (hl && hl.textOffset === undefined) {
+                            hl.textOffset = 0; // 기본값
+                        }
+                    });
                 }
             }
-
-            console.log('[SillyTavern-Highlighter] Migration completed');
-        } else {
-            console.log(`[SillyTavern-Highlighter] Already at version ${EXTENSION_VERSION}, no migration needed`);
         }
 
-        // ⭐ v1.1.13: 인덱스 기반 → date_added 기반 마이그레이션 (버전과 무관하게 항상 체크)
+        // ⭐ v1.1.13: 인덱스 기반 → date_added 기반 마이그레이션 (항상 체크)
         migrateToDateAddedKeys(data);
 
         // 버전 업데이트
         data.version = EXTENSION_VERSION;
 
+        console.log('[SillyTavern-Highlighter] Migration completed');
         return data;
     } catch (error) {
         console.error('[SillyTavern-Highlighter] Migration error:', error);
@@ -1086,104 +1073,6 @@ function migrateToDateAddedKeys(data) {
         }
     }
 }
-
-/**
- * 마이그레이션 경고 모달 표시
- */
-function showMigrationWarningModal() {
-    console.log('[SillyTavern-Highlighter] Checking migration modal:', {
-        migrationWarningShown: settings.migrationWarningShown,
-        shouldShow: settings.migrationWarningShown === false
-    });
-    
-    // 이미 모달이 표시되었거나 사용자가 거부한 경우 건너뜀
-    if (settings.migrationWarningShown !== false) {
-        console.log('[SillyTavern-Highlighter] Migration modal skipped');
-        return;
-    }
-    
-    console.log('[SillyTavern-Highlighter] Showing migration modal');
-
-    const modal = `
-        <div id="migration-warning-modal" class="hl-modal-overlay" style="z-index: 10000;">
-            <div class="hl-modal" style="max-width: 600px;">
-                <div class="hl-modal-header" style="background: #ff9800; color: white;">
-                    <h3><i class="fa-solid fa-triangle-exclamation"></i> 중요: 데이터 마이그레이션 완료</h3>
-                </div>
-                <div class="hl-modal-body" style="line-height: 1.8;">
-                    <p style="font-size: 15px; font-weight: 600; margin-bottom: 16px; color: #333;">
-                        형광펜 확장 프로그램이 업그레이드되었습니다.
-                    </p>
-                    
-                    <div style="background: #fff3cd; padding: 16px; border-radius: 8px; border: 1px solid #ffc107; margin-bottom: 16px;">
-                        <p style="margin: 0 0 12px 0; font-weight: 600; color: #856404;">
-                            ⚠️ 반드시 확인해주세요:
-                        </p>
-                        <ul style="margin: 0; padding-left: 24px; color: #856404;">
-                            <li style="margin-bottom: 8px;">
-                                <strong>독서노트 패널</strong>을 열어 형광펜과 메모가 올바른 캐릭터에 연결되어 있는지 확인하세요
-                            </li>
-                            <li style="margin-bottom: 8px;">
-                                이전에 캐릭터를 추가/삭제한 적이 있다면 <strong>일부 데이터가 섞였을 수 있습니다</strong>
-                            </li>
-                            <li>
-                                반드시 <strong>백업 기능</strong>을 사용하여 현재 데이터를 저장하세요
-                            </li>
-                        </ul>
-                    </div>
-                    
-                    <div style="background: #e7f3ff; padding: 16px; border-radius: 8px; border: 1px solid #2196f3; margin-bottom: 16px;">
-                        <p style="margin: 0 0 12px 0; font-weight: 600; color: #0d47a1;">
-                            ✅ 개선 사항:
-                        </p>
-                        <ul style="margin: 0; padding-left: 24px; color: #0d47a1;">
-                            <li style="margin-bottom: 8px;">
-                                <strong>지금부터는</strong> 캐릭터를 추가/삭제해도 형광펜이 섞이지 않습니다
-                            </li>
-                            <li style="margin-bottom: 8px;">
-                                Android에서 텍스트 드래그 시 팔레트가 정상 표시됩니다
-                            </li>
-                            <li>
-                                빠른 색상 입력 시 # 기호를 붙여도 됩니다
-                            </li>
-                        </ul>
-                    </div>
-                    
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; margin-top: 16px; color: #333;">
-                        <input type="checkbox" id="migration-warning-dismiss" style="margin: 0;">
-                        <span>이 메시지를 다시 보지 않기</span>
-                    </label>
-                </div>
-                <div class="hl-modal-footer">
-                    <button class="hl-modal-btn hl-modal-save" style="background: #2196f3; color: white;">
-                        확인했습니다
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    $('body').append(modal);
-
-    // 확인 버튼
-    $('#migration-warning-modal .hl-modal-save').on('click', function() {
-        const dontShowAgain = $('#migration-warning-dismiss').is(':checked');
-        
-        if (dontShowAgain) {
-            settings.migrationWarningShown = true;
-        } else {
-            settings.migrationWarningShown = 'remind'; // 다음에 다시 보여줌
-        }
-        
-        extension_settings[extensionName] = settings;
-        saveSettingsDebounced();
-        
-        $('#migration-warning-modal').remove();
-    });
-
-    // ESC 키나 배경 클릭으로는 닫히지 않도록 (강제로 확인하게)
-}
-
 
 function createHighlighterUI() {
     const html = `
@@ -5272,9 +5161,4 @@ function showUpdateNotification(latestVersion) {
             console.warn('[SillyTavern-Highlighter] Update check failed silently:', error);
         }
     }, 2000); // 2초 후 실행 (다른 초기화 완료 후)
-
-    // ⭐ 마이그레이션 경고 모달 표시 (UI 로드 후 약간의 딜레이)
-    setTimeout(() => {
-        showMigrationWarningModal();
-    }, 1000);
 })();
