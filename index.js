@@ -1081,6 +1081,9 @@ function migrateToDateAddedKeys(data) {
         
         // ⭐ 마이그레이션 경고 모달 플래그 설정
         data.migrationWarningShown = false; // 모달을 보여줘야 함
+        console.log('[SillyTavern-Highlighter] Migration detected, setting modal flag to false');
+    } else {
+        console.log('[SillyTavern-Highlighter] No migration needed, modal will not show');
     }
 }
 
@@ -1088,10 +1091,18 @@ function migrateToDateAddedKeys(data) {
  * 마이그레이션 경고 모달 표시
  */
 function showMigrationWarningModal() {
+    console.log('[SillyTavern-Highlighter] Checking migration modal:', {
+        migrationWarningShown: settings.migrationWarningShown,
+        shouldShow: settings.migrationWarningShown === false
+    });
+    
     // 이미 모달이 표시되었거나 사용자가 거부한 경우 건너뜀
     if (settings.migrationWarningShown !== false) {
+        console.log('[SillyTavern-Highlighter] Migration modal skipped');
         return;
     }
+    
+    console.log('[SillyTavern-Highlighter] Showing migration modal');
 
     const modal = `
         <div id="migration-warning-modal" class="hl-modal-overlay" style="z-index: 10000;">
