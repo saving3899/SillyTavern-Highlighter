@@ -952,6 +952,12 @@ function migrateSettings(data) {
     try {
         const currentVersion = data.version || null;
 
+        // ⭐ v1.1.14: 모든 사용자에게 한 번은 경고 모달 표시
+        if (data.migrationWarningShown === undefined) {
+            data.migrationWarningShown = false; // 모달을 보여줘야 함
+            console.log('[SillyTavern-Highlighter] First time on v1.1.14+, will show migration warning modal');
+        }
+
         // 버전이 없거나 1.0.0 미만인 경우 마이그레이션
         if (!currentVersion || currentVersion !== EXTENSION_VERSION) {
             console.log(`[SillyTavern-Highlighter] Migrating from ${currentVersion || 'pre-1.0.0'} to ${EXTENSION_VERSION}`);
@@ -1078,12 +1084,6 @@ function migrateToDateAddedKeys(data) {
         if (typeof extension_settings !== 'undefined') {
             extension_settings[extensionName] = data;
         }
-        
-        // ⭐ 마이그레이션 경고 모달 플래그 설정
-        data.migrationWarningShown = false; // 모달을 보여줘야 함
-        console.log('[SillyTavern-Highlighter] Migration detected, setting modal flag to false');
-    } else {
-        console.log('[SillyTavern-Highlighter] No migration needed, modal will not show');
     }
 }
 
