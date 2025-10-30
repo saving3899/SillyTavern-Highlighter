@@ -883,37 +883,97 @@ function validateAndRepairSettings(data) {
     }
 }
 
+// ====================================
+// 캐릭터 고유 키 관리 (date_added 기반) - 마이그레이션보다 먼저 정의 필요
+// ====================================
+
+/**
+ * 캐릭터의 고유 키를 반환 (date_added 타임스탬프)
+ * @param {number|string} charIndexOrKey - 배열 인덱스 또는 이미 변환된 키
+ * @returns {string|null} date_added 키 (예: "1761785686114.2478")
+ */
+function getCharacterKey(charIndexOrKey) {
+    // 이미 date_added 형식인 경우 (13자리 이상 숫자)
+    if (typeof charIndexOrKey === 'string' || typeof charIndexOrKey === 'number') {
+        const keyStr = String(charIndexOrKey);
+        if (keyStr.includes('.') && parseFloat(keyStr) > 1000000000000) {
+            return keyStr; // 이미 date_added 키
+        }
+    }
+
+    // 인덱스로 간주하고 변환
+    const index = typeof charIndexOrKey === 'string' ? parseInt(charIndexOrKey) : charIndexOrKey;
+    if (isNaN(index) || index < 0) {
+        console.warn('[SillyTavern-Highlighter] Invalid character index:', charIndexOrKey);
+        return null;
+    }
+
+    // characters 배열이 아직 로드되지 않았거나 범위 밖인 경우
+    if (!characters || !characters[index]) {
+        // 마이그레이션 중에는 경고 없이 null 반환 (나중에 재시도 가능)
+        return null;
+    }
+
+    const char = characters[index];
+    if (!char.date_added) {
+        console.warn('[SillyTavern-Highlighter] Character has no date_added:', index, char?.name);
+        return null;
+    }
+
+    return String(char.date_added);
+}
+
+/**
+ * 키로 캐릭터 찾기 (date_added 또는 인덱스)
+ * @param {string} key - date_added 키 또는 인덱스
+ * @returns {object|null} 캐릭터 객체
+ */
+function findCharacterByKey(key) {
+    if (!key) return null;
+    
+    const keyStr = String(key);
+    
+    // date_added로 찾기
+    if (keyStr.includes('.') || parseFloat(keyStr) > 1000000000000) {
+        return characters.find(c => String(c.date_added) === keyStr);
+    }
+    
+    // 인덱스로 찾기 (폴백)
+    const index = parseInt(keyStr);
+    if (!isNaN(index) && index >= 0 && index < characters.length) {
+        return characters[index];
+    }
+    
+    return null;
+}
+
 // 데이터 마이그레이션
 function migrateSettings(data) {
     try {
         const currentVersion = data.version || null;
+        console.log(`[SillyTavern-Highlighter] Running migration from ${currentVersion || 'unknown'} to ${EXTENSION_VERSION}`);
 
-        // 버전이 없거나 1.0.0 미만인 경우 마이그레이션
-        if (!currentVersion || currentVersion !== EXTENSION_VERSION) {
-            console.log(`[SillyTavern-Highlighter] Migrating from ${currentVersion || 'pre-1.0.0'} to ${EXTENSION_VERSION}`);
-
-            // textOffset 필드 추가 (없으면 0으로)
-            for (const charId in data.highlights) {
-                for (const chatFile in data.highlights[charId]) {
-                    const chatData = data.highlights[charId][chatFile];
-                    if (chatData && Array.isArray(chatData.highlights)) {
-                        chatData.highlights.forEach(hl => {
-                            if (hl && hl.textOffset === undefined) {
-                                hl.textOffset = 0; // 기본값
-                            }
-                        });
-                    }
+        // textOffset 필드 추가 (없으면 0으로)
+        for (const charId in data.highlights) {
+            for (const chatFile in data.highlights[charId]) {
+                const chatData = data.highlights[charId][chatFile];
+                if (chatData && Array.isArray(chatData.highlights)) {
+                    chatData.highlights.forEach(hl => {
+                        if (hl && hl.textOffset === undefined) {
+                            hl.textOffset = 0; // 기본값
+                        }
+                    });
                 }
             }
-
-            console.log('[SillyTavern-Highlighter] Migration completed');
-        } else {
-            console.log(`[SillyTavern-Highlighter] Already at version ${EXTENSION_VERSION}, no migration needed`);
         }
+
+        // ⭐ v1.1.13: 인덱스 기반 → date_added 기반 마이그레이션 (항상 체크)
+        migrateToDateAddedKeys(data);
 
         // 버전 업데이트
         data.version = EXTENSION_VERSION;
 
+        console.log('[SillyTavern-Highlighter] Migration completed');
         return data;
     } catch (error) {
         console.error('[SillyTavern-Highlighter] Migration error:', error);
@@ -922,6 +982,97 @@ function migrateSettings(data) {
     }
 }
 
+/**
+ * 인덱스 기반 키를 date_added 기반으로 마이그레이션
+ * 경고: 이미 배열 순서가 바뀐 경우 완벽한 복구는 불가능
+ */
+function migrateToDateAddedKeys(data) {
+    if (!data.highlights || typeof data.highlights !== 'object') {
+        return;
+    }
+
+    // 마이그레이션 필요 여부 확인: 인덱스 형식 키가 있는지 체크
+    const keys = Object.keys(data.highlights);
+    const hasIndexKeys = keys.some(key => {
+        // 숫자만 있거나, 3자리 이하 숫자 = 인덱스
+        return /^\d+$/.test(key) && parseInt(key) < 1000;
+    });
+    
+    if (!hasIndexKeys) {
+        console.log('[SillyTavern-Highlighter] No index-based keys found, migration not needed');
+        return;
+    }
+
+    console.log('[SillyTavern-Highlighter] Migrating character keys from index to date_added...');
+    
+    const newHighlights = {};
+    let migratedCount = 0;
+    let failedCount = 0;
+
+    for (const oldKey in data.highlights) {
+        const charKey = getCharacterKey(oldKey);
+        
+        if (charKey) {
+            newHighlights[charKey] = data.highlights[oldKey];
+            migratedCount++;
+            
+            const char = findCharacterByKey(charKey);
+            console.log(`[SillyTavern-Highlighter] Migrated: index ${oldKey} → date_added ${charKey} (${char?.name || 'Unknown'})`);
+        } else {
+            // 변환 실패 시 원본 키 유지 (데이터 보존)
+            console.warn(`[SillyTavern-Highlighter] Failed to migrate key: ${oldKey}, keeping original`);
+            newHighlights[oldKey] = data.highlights[oldKey];
+            failedCount++;
+        }
+    }
+
+    data.highlights = newHighlights;
+
+    // characterMemos와 chatMemos도 마이그레이션
+    if (data.characterMemos) {
+        const newMemos = {};
+        for (const oldKey in data.characterMemos) {
+            const charKey = getCharacterKey(oldKey);
+            if (charKey) {
+                newMemos[charKey] = data.characterMemos[oldKey];
+            } else {
+                newMemos[oldKey] = data.characterMemos[oldKey];
+            }
+        }
+        data.characterMemos = newMemos;
+    }
+
+    if (data.chatMemos) {
+        const newChatMemos = {};
+        for (const oldKey in data.chatMemos) {
+            // chatMemos 키 형식: "charId_chatFile"
+            const parts = oldKey.split('_');
+            if (parts.length >= 2) {
+                const oldCharId = parts[0];
+                const chatFile = parts.slice(1).join('_'); // chatFile에 _가 있을 수 있음
+                const newCharKey = getCharacterKey(oldCharId);
+                
+                if (newCharKey) {
+                    newChatMemos[`${newCharKey}_${chatFile}`] = data.chatMemos[oldKey];
+                } else {
+                    newChatMemos[oldKey] = data.chatMemos[oldKey];
+                }
+            } else {
+                newChatMemos[oldKey] = data.chatMemos[oldKey];
+            }
+        }
+        data.chatMemos = newChatMemos;
+    }
+
+    console.log(`[SillyTavern-Highlighter] Migration summary: ${migratedCount} success, ${failedCount} failed`);
+    
+    if (migratedCount > 0) {
+        // ⭐ extension_settings에 즉시 반영 (디바운스 우회)
+        if (typeof extension_settings !== 'undefined') {
+            extension_settings[extensionName] = data;
+        }
+    }
+}
 
 function createHighlighterUI() {
     const html = `
@@ -1231,14 +1382,14 @@ function toggleHighlightMode() {
 
 function navigateToCurrentChat() {
     const chatFile = getCurrentChatFile();
-    const charId = this_chid;
+    const charKey = getCurrentCharacterKey();
 
-    if (!chatFile || !charId) {
+    if (!chatFile || !charKey) {
         toastr.warning('채팅이 열려있지 않습니다');
         return;
     }
 
-    navigateToHighlightList(charId, chatFile);
+    navigateToHighlightList(charKey, chatFile);
 }
 
 function navigateToCharacterList() {
@@ -1301,7 +1452,7 @@ function updateBreadcrumb() {
     } else if (selectedCharacter) {
         // 채팅 목록 → 캐릭터 목록
         html = '<button class="hl-back-btn" data-action="back-to-home"><i class="fa-solid fa-arrow-left"></i> 모든 캐릭터</button>';
-        const charName = getCharacterName(selectedCharacter);
+        const charName = getCharacterNameByKey(selectedCharacter);
         html += ` <span class="breadcrumb-current">${charName}</span>`;
 
         // 정렬 버튼 추가
@@ -1490,8 +1641,8 @@ function renderCharacterList($container) {
     if (sortOption === 'name') {
         // 이름순 (가나다)
         charIds.sort((a, b) => {
-            const nameA = getCharacterName(a);
-            const nameB = getCharacterName(b);
+            const nameA = getCharacterNameByKey(a);
+            const nameB = getCharacterNameByKey(b);
             return nameA.localeCompare(nameB, 'ko-KR');
         });
     } else {
@@ -1508,18 +1659,18 @@ function renderCharacterList($container) {
     // 이미지 캐시 무효화를 위한 타임스탬프
     const timestamp = Date.now();
 
-    charIds.forEach(charId => {
-        const charData = characters[charId];
+    charIds.forEach(charKey => {
+        const charData = findCharacterByKey(charKey);
         const charName = charData?.name || 'Unknown';
-        const totalHighlights = getTotalHighlightsForCharacter(charId);
+        const totalHighlights = getTotalHighlightsForCharacter(charKey);
         const avatar = charData?.avatar ?
             `/thumbnail?type=avatar&file=${charData.avatar}&t=${timestamp}` :
             '/img/five.png';
-        const memo = settings.characterMemos?.[charId] || '';
+        const memo = settings.characterMemos?.[charKey] || '';
         const memoDisplay = memo ? `<span class="hl-memo">${memo}</span>` : '';
 
         const item = `
-            <div class="hl-list-item" data-char-id="${charId}">
+            <div class="hl-list-item" data-char-key="${charKey}">
                 <img src="${avatar}" class="hl-icon" onerror="this.src='/img/five.png'">
                 <div class="hl-info">
                     <div class="hl-name">${charName}</div>
@@ -1528,7 +1679,7 @@ function renderCharacterList($container) {
                         ${memoDisplay}
                     </div>
                 </div>
-                <button class="hl-memo-edit-btn" data-char-id="${charId}" title="메모 편집">
+                <button class="hl-memo-edit-btn" data-char-key="${charKey}" title="메모 편집">
                     <i class="fa-solid fa-pencil"></i>
                 </button>
                 <i class="fa-solid fa-chevron-right hl-chevron"></i>
@@ -1543,22 +1694,22 @@ function renderCharacterList($container) {
         if ($(e.target).closest('.hl-memo-edit-btn').length > 0) {
             return;
         }
-        navigateToChatList($(this).data('charId'));
+        navigateToChatList($(this).data('charKey'));
     });
 
     // 메모 편집 버튼 이벤트 바인딩
     $container.find('.hl-memo-edit-btn').off('click').on('click', function (e) {
         e.stopPropagation();
-        const charId = $(this).data('charId');
-        openCharacterMemoEditor(charId);
+        const charKey = $(this).data('charKey');
+        openCharacterMemoEditor(charKey);
     });
 }
 
-function openCharacterMemoEditor(charId) {
+function openCharacterMemoEditor(charKey) {
     $('#character-memo-modal').remove();
 
-    const charName = getCharacterName(charId);
-    const currentMemo = settings.characterMemos?.[charId] || '';
+    const charName = getCharacterNameByKey(charKey);
+    const currentMemo = settings.characterMemos?.[charKey] || '';
 
     const modal = `
         <div id="character-memo-modal" class="hl-modal-overlay">
@@ -1597,9 +1748,9 @@ function openCharacterMemoEditor(charId) {
         if (!settings.characterMemos) settings.characterMemos = {};
 
         if (newMemo) {
-            settings.characterMemos[charId] = newMemo;
+            settings.characterMemos[charKey] = newMemo;
         } else {
-            delete settings.characterMemos[charId];
+            delete settings.characterMemos[charKey];
         }
 
         saveSettingsDebounced();
@@ -1612,7 +1763,7 @@ function openCharacterMemoEditor(charId) {
     $('.hl-modal-delete').on('click', function () {
         if (confirm('메모를 삭제하시겠습니까?')) {
             if (settings.characterMemos) {
-                delete settings.characterMemos[charId];
+                delete settings.characterMemos[charKey];
             }
             saveSettingsDebounced();
             renderView();
@@ -1912,7 +2063,8 @@ function getMessageLabel(mesId) {
     } else if (message.is_user) {
         name = message.name || '나';
     } else {
-        name = message.name || getCharacterName(this_chid);
+        const charKey = getCurrentCharacterKey();
+        name = message.name || getCharacterNameByKey(charKey);
     }
 
     return `${name}#${mesId}`;
@@ -2198,9 +2350,9 @@ function createHighlight(text, color, range, el) {
     const $mes = $(el).closest('.mes');
     const mesId = getMesId($mes);
     const chatFile = getCurrentChatFile();
-    const charId = this_chid;
+    const charKey = getCurrentCharacterKey();
 
-    if (!chatFile || !charId) {
+    if (!chatFile || !charKey) {
         toastr.error('채팅 정보를 가져올 수 없습니다');
         return;
     }
@@ -2336,7 +2488,7 @@ function createHighlight(text, color, range, el) {
 
     // actualText 사용 (TreeWalker로 추출한 텍스트)
     // ⭐ 수정: 현재 메시지 라벨도 함께 저장
-    saveHighlight(charId, chatFile, {
+    saveHighlight(charKey, chatFile, {
         id: hlId,
         mesId: mesId,
         swipeId: getCurrentSwipeId(mesId), // 스와이프 ID 저장
@@ -2728,7 +2880,7 @@ function deleteHighlight(hlId, charId, chatFile) {
 }
 
 function deleteCharacterHighlights() {
-    const charName = getCharacterName(selectedCharacter);
+    const charName = getCharacterNameByKey(selectedCharacter);
     const totalCount = getTotalHighlightsForCharacter(selectedCharacter);
 
     // 모달 생성
@@ -2875,29 +3027,38 @@ async function jumpToMessage(mesId, hlId) {
 
     // hlId로 하이라이트가 속한 캐릭터/채팅 찾기
     const result = hlId ? findHighlightById(hlId) : null;
-    const targetCharId = result ? result.charId : selectedCharacter;
+    const targetCharKey = result ? result.charId : selectedCharacter;
     const targetChatFile = result ? result.chatFile : selectedChat;
 
-    const currentCharId = this_chid;
+    const currentCharKey = getCurrentCharacterKey();
     const currentChatFile = getCurrentChatFile();
 
     // 타입 변환 (문자열로 통일)
-    const targetCharIdStr = targetCharId !== null && targetCharId !== undefined ? String(targetCharId) : null;
-    const currentCharIdStr = currentCharId !== null && currentCharId !== undefined ? String(currentCharId) : null;
+    const targetCharKeyStr = targetCharKey !== null && targetCharKey !== undefined ? String(targetCharKey) : null;
+    const currentCharKeyStr = currentCharKey !== null && currentCharKey !== undefined ? String(currentCharKey) : null;
 
     // 같은 캐릭터이고 같은 채팅인 경우 바로 점프 (불필요한 이동 방지)
-    if (targetCharIdStr === currentCharIdStr && targetChatFile === currentChatFile) {
+    if (targetCharKeyStr === currentCharKeyStr && targetChatFile === currentChatFile) {
         jumpToMessageInternal(mesId, hlId);
         return;
     }
 
     // 캐릭터가 다른 경우 캐릭터 변경
-    if (targetCharIdStr !== currentCharIdStr && targetCharId !== null) {
-        const charName = getCharacterName(targetCharId);
+    if (targetCharKeyStr !== currentCharKeyStr && targetCharKey !== null) {
+        const targetChar = findCharacterByKey(targetCharKey);
+        const charName = targetChar?.name || 'Unknown';
 
         // 캐릭터가 삭제되었는지 확인
-        if (charName === 'Unknown' || !characters[targetCharId]) {
+        if (!targetChar || charName === 'Unknown') {
             showDeletedChatAlert('character', charName || '알 수 없음', targetChatFile);
+            return;
+        }
+        
+        // date_added 키로 캐릭터를 찾았으니, 현재 배열에서의 인덱스를 찾음
+        const targetCharIndex = characters.findIndex(c => String(c.date_added) === targetCharKeyStr);
+        
+        if (targetCharIndex === -1) {
+            toastr.error('캐릭터를 찾을 수 없습니다');
             return;
         }
 
@@ -2909,10 +3070,10 @@ async function jumpToMessage(mesId, hlId) {
             // 방법 1: 다양한 선택자로 charId 버튼 찾기
             let $charButton = null;
             const selectors = [
-                `.select_rm_characters[chid="${targetCharId}"]`,
-                `.select_rm_characters[data-chid="${targetCharId}"]`,
-                `#rm_button_selected_ch${targetCharId}`,
-                `.character_select[chid="${targetCharId}"]`
+                `.select_rm_characters[chid="${targetCharIndex}"]`,
+                `.select_rm_characters[data-chid="${targetCharIndex}"]`,
+                `#rm_button_selected_ch${targetCharIndex}`,
+                `.character_select[chid="${targetCharIndex}"]`
             ];
 
             for (const selector of selectors) {
@@ -2927,8 +3088,9 @@ async function jumpToMessage(mesId, hlId) {
                 $charButton.trigger('click');
                 await new Promise(resolve => setTimeout(resolve, 600));
 
-                // 캐릭터 변경 확인
-                if (String(this_chid) === targetCharIdStr) {
+                // 캐릭터 변경 확인 (date_added 키로 비교)
+                const newCharKey = getCurrentCharacterKey();
+                if (newCharKey === targetCharKeyStr) {
                     success = true;
                     console.log('[SillyTavern-Highlighter] Character changed successfully via button click');
                 }
@@ -2939,10 +3101,11 @@ async function jumpToMessage(mesId, hlId) {
                 try {
                     const context = SillyTavern.getContext();
                     if (context && typeof context.selectCharacterById === 'function') {
-                        await context.selectCharacterById(String(targetCharId));
+                        await context.selectCharacterById(String(targetCharIndex));
                         await new Promise(resolve => setTimeout(resolve, 600));
 
-                        if (String(this_chid) === targetCharIdStr) {
+                        const newCharKey = getCurrentCharacterKey();
+                        if (newCharKey === targetCharKeyStr) {
                             success = true;
                             console.log('[SillyTavern-Highlighter] Character changed successfully via selectCharacterById');
                         }
@@ -2983,7 +3146,8 @@ async function jumpToMessage(mesId, hlId) {
                 await executeSlashCommandsWithOptions(`/char ${charName}`);
                 await new Promise(resolve => setTimeout(resolve, 600));
 
-                if (String(this_chid) === targetCharIdStr) {
+                const newCharKey = getCurrentCharacterKey();
+                if (newCharKey === targetCharKeyStr) {
                     success = true;
                     console.log('[SillyTavern-Highlighter] Character changed successfully via /char command');
                 }
@@ -3324,12 +3488,12 @@ function exportHighlightsJSON(scope) {
         scopeName = '전체';
     } else if (scope === 'character' && selectedCharacter) {
         dataToExport[selectedCharacter] = settings.highlights[selectedCharacter];
-        scopeName = getCharacterName(selectedCharacter);
+        scopeName = getCharacterNameByKey(selectedCharacter);
     } else if (scope === 'chat' && selectedCharacter && selectedChat) {
         dataToExport[selectedCharacter] = {
             [selectedChat]: settings.highlights[selectedCharacter]?.[selectedChat]
         };
-        scopeName = `${getCharacterName(selectedCharacter)}_${selectedChat}`;
+        scopeName = `${getCharacterNameByKey(selectedCharacter)}_${selectedChat}`;
     }
 
     const data = {
@@ -3375,12 +3539,12 @@ function exportHighlightsTXT(scope) {
         scopeName = '전체';
     } else if (scope === 'character' && selectedCharacter) {
         dataToExport[selectedCharacter] = settings.highlights[selectedCharacter];
-        scopeName = getCharacterName(selectedCharacter);
+        scopeName = getCharacterNameByKey(selectedCharacter);
     } else if (scope === 'chat' && selectedCharacter && selectedChat) {
         dataToExport[selectedCharacter] = {
             [selectedChat]: settings.highlights[selectedCharacter]?.[selectedChat]
         };
-        scopeName = `${getCharacterName(selectedCharacter)} > ${selectedChat}`;
+        scopeName = `${getCharacterNameByKey(selectedCharacter)} > ${selectedChat}`;
     }
 
     content += `범위: ${scopeName}\n`;
@@ -3542,6 +3706,18 @@ function importHighlights(file) {
     $('#hl-import-file-input').val('');
 }
 
+// ====================================
+// 헬퍼 함수들 (캐릭터 키 관리 함수는 위쪽에 정의됨)
+// ====================================
+
+/**
+ * 현재 선택된 캐릭터의 고유 키를 반환
+ * @returns {string|null}
+ */
+function getCurrentCharacterKey() {
+    return getCharacterKey(this_chid);
+}
+
 function getCurrentChatFile() {
     const context = getContext();
     return context.chatId || context.chat_metadata?.file_name || null;
@@ -3549,6 +3725,16 @@ function getCurrentChatFile() {
 
 function getCharacterName(charId) {
     return characters[charId]?.name || 'Unknown';
+}
+
+/**
+ * 키로 캐릭터 이름 가져오기 (date_added 지원)
+ * @param {string} key - date_added 키 또는 인덱스
+ * @returns {string}
+ */
+function getCharacterNameByKey(key) {
+    const char = findCharacterByKey(key);
+    return char?.name || 'Unknown';
 }
 
 function getTotalHighlightsForCharacter(charId) {
@@ -3571,14 +3757,14 @@ function findHighlightById(hlId) {
     }
 
     // 현재 열린 채팅에서 찾기
-    const currentCharId = this_chid;
+    const currentCharKey = getCurrentCharacterKey();
     const currentChatFile = getCurrentChatFile();
 
-    if (currentCharId && currentChatFile) {
-        const chatData = settings.highlights[currentCharId]?.[currentChatFile];
+    if (currentCharKey && currentChatFile) {
+        const chatData = settings.highlights[currentCharKey]?.[currentChatFile];
         if (chatData) {
             const found = chatData.highlights.find(h => h.id === hlId);
-            if (found) return { highlight: found, charId: currentCharId, chatFile: currentChatFile };
+            if (found) return { highlight: found, charId: currentCharKey, chatFile: currentChatFile };
         }
     }
 
@@ -3616,12 +3802,12 @@ function deepMerge(target, source) {
 
 function restoreHighlightsInChat() {
     const chatFile = getCurrentChatFile();
-    const charId = this_chid;
+    const charKey = getCurrentCharacterKey();
 
-    if (!chatFile || !charId) return;
+    if (!chatFile || !charKey) return;
 
     // ⭐ 현재 채팅 파일의 형광펜만 복원 (자동 복사 기능 제거됨)
-    let currentChatHighlights = settings.highlights[charId]?.[chatFile]?.highlights || [];
+    let currentChatHighlights = settings.highlights[charKey]?.[chatFile]?.highlights || [];
 
     // ⭐ 화면에 하이라이트 표시
     const allHighlights = [...currentChatHighlights];
@@ -4726,10 +4912,17 @@ function showUpdateNotification(latestVersion) {
     // extension_settings에 반영
     extension_settings[extensionName] = settings;
 
-    // 마이그레이션이 발생했으면 저장 (버전 필드 업데이트)
+    // 마이그레이션이 발생했으면 즉시 저장 (디바운스 우회)
     if (!loadedSettings || loadedSettings.version !== EXTENSION_VERSION) {
         console.log('[SillyTavern-Highlighter] Saving migrated data');
-        saveSettingsDebounced();
+        // 즉시 저장 (디바운스 없이)
+        if (typeof saveSettingsDebounced === 'function' && typeof saveSettingsDebounced.flush === 'function') {
+            saveSettingsDebounced.flush(); // Lodash 디바운스의 경우
+        } else {
+            saveSettingsDebounced();
+            // 추가로 짧은 딜레이 후 한 번 더 시도
+            setTimeout(() => saveSettingsDebounced(), 100);
+        }
     }
 
     createHighlighterUI();
@@ -4876,7 +5069,39 @@ function showUpdateNotification(latestVersion) {
         showUpdateNotification(pendingUpdateVersion);
     }
 
-    eventSource.on(event_types.CHARACTER_SELECTED, onCharacterChange);
+    // ⭐ 지연 마이그레이션: 캐릭터 로드 후 재시도
+    let migrationRetried = false;
+    const retryMigration = () => {
+        if (!migrationRetried && characters && characters.length > 0) {
+            migrationRetried = true;
+            console.log('[SillyTavern-Highlighter] Retrying migration after characters loaded');
+            
+            // 인덱스 키가 남아있는지 확인
+            const keys = Object.keys(settings.highlights || {});
+            const hasIndexKeys = keys.some(key => /^\d+$/.test(key) && parseInt(key) < 1000);
+            
+            if (hasIndexKeys) {
+                settings = migrateSettings(settings);
+                extension_settings[extensionName] = settings;
+                // 즉시 저장
+                if (typeof saveSettingsDebounced.flush === 'function') {
+                    saveSettingsDebounced.flush();
+                } else {
+                    saveSettingsDebounced();
+                }
+                console.log('[SillyTavern-Highlighter] Migration retry completed');
+            }
+        }
+    };
+    
+    // 여러 타이밍에서 재시도
+    setTimeout(retryMigration, 1000);  // 1초 후
+    setTimeout(retryMigration, 3000);  // 3초 후
+    eventSource.on(event_types.CHARACTER_SELECTED, () => {
+        retryMigration();
+        onCharacterChange();
+    });
+    
     eventSource.on(event_types.CHAT_CHANGED, onChatChange);
     eventSource.on(event_types.MESSAGE_RECEIVED, restoreHighlightsInChat);
     eventSource.on(event_types.MESSAGE_SENT, restoreHighlightsInChat);
