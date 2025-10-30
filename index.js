@@ -1111,7 +1111,7 @@ function showMigrationWarningModal() {
                     <h3><i class="fa-solid fa-triangle-exclamation"></i> 중요: 데이터 마이그레이션 완료</h3>
                 </div>
                 <div class="hl-modal-body" style="line-height: 1.8;">
-                    <p style="font-size: 15px; font-weight: 600; margin-bottom: 16px;">
+                    <p style="font-size: 15px; font-weight: 600; margin-bottom: 16px; color: #333;">
                         형광펜 확장 프로그램이 업그레이드되었습니다.
                     </p>
                     
@@ -1149,7 +1149,7 @@ function showMigrationWarningModal() {
                         </ul>
                     </div>
                     
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; margin-top: 16px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; margin-top: 16px; color: #333;">
                         <input type="checkbox" id="migration-warning-dismiss" style="margin: 0;">
                         <span>이 메시지를 다시 보지 않기</span>
                     </label>
