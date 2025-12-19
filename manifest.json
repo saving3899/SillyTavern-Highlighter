@@ -6,8 +6,8 @@
     "js": "index.js",
     "css": "style.css",
     "author": "saving3899",
-    "version": "1.1.14",
-    "updateMessage": "중요 업데이트: 캐릭터 식별 방식 개선 (date_added 기반) / 독서노트에서 데이터 확인 및 백업 권장",
+    "version": "1.2.0",
+    "updateMessage": "캐릭터 이름 표시 오류 수정, 백업 기능 분리(컨텐츠/설정). *업데이트 전 데이터 백업을 권장*",
     "homePage": "https://github.com/saving3899/SillyTavern-Highlighter",
     "description": "이북앱 스타일 형광펜 모드 / 깡갤 대피소 갤러리에서만 배포됨"
 }
