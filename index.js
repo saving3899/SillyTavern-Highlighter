@@ -2914,7 +2914,7 @@ function createHighlight(text, color, range, el) {
         .replace(/```[\s\S]*?```/g, '')         // ```code block``` → 제거
         .replace(/`([^`]+)`/g, '$1')            // `code` → code
         // 링크 및 이미지
-        .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')  // ![alt](url) → alt
+        .replace(/!\[[^\]]*\]\([^)]+\)/g, '')     // ![alt](url) → 완전 제거
         .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')   // [text](url) → text
         // 헤더
         .replace(/^#{1,6}\s+/gm, '')            // # Header → Header
@@ -2924,6 +2924,8 @@ function createHighlight(text, color, range, el) {
         .replace(/^\d+\.\s+/gm, '')             // 1. list → list
         // 수평선
         .replace(/^[-*_]{3,}$/gm, '')           // --- or *** → 제거
+        // HTML 태그 제거 (img, br 등)
+        .replace(/<[^>]+>/g, '')                // <img>, <br>, <div> 등 모든 HTML 태그 제거
         // 공백 정리
         .replace(/\s+/g, ' ').trim();
     const normalizedOriginalMessage = originalMessage.replace(/\s+/g, ' ').trim();
