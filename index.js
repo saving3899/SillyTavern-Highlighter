@@ -2897,6 +2897,47 @@ function createHighlight(text, color, range, el) {
         return;
     }
 
+    // ⭐ 단어 변환 호환성: DOM 수정 전에 원본 메시지에서 텍스트 확인
+    const originalMessage = chat[mesId]?.mes || '';
+    const normalizedActualText = actualText.replace(/\s+/g, ' ').trim();
+    const normalizedOriginalMessage = originalMessage.replace(/\s+/g, ' ').trim();
+
+    if (!normalizedOriginalMessage.includes(normalizedActualText)) {
+        // 단어 변환 등으로 변환된 텍스트일 수 있음
+        const $mesText = $mes.find('.mes_text');
+        const originalHtml = $mesText.data('original-html');
+
+        if (originalHtml) {
+            // 원본 HTML에서 텍스트 추출 (단어 변환 span 제거)
+            const checkDiv = document.createElement('div');
+            checkDiv.innerHTML = originalHtml;
+            checkDiv.querySelectorAll('.word-hider-hidden').forEach(el => {
+                el.replaceWith(document.createTextNode(el.textContent || ''));
+            });
+            const originalText = (checkDiv.textContent || '').replace(/\s+/g, ' ').trim();
+
+            if (!originalText.includes(normalizedActualText)) {
+                // 원본에도 없음 - 변환된 텍스트
+                toastr.warning(
+                    '선택한 텍스트가 원본 메시지에 존재하지 않습니다.<br>' +
+                    '단어 변환 기능 등이 적용된 경우, 해당 기능을 끄고 형광펜을 생성해주세요.',
+                    '형광펜 저장 불가',
+                    { timeOut: 5000, escapeHtml: false }
+                );
+                return; // DOM 수정 전에 반환
+            }
+        } else {
+            // original-html이 없지만 원본 메시지에도 없음 - 경고 표시
+            toastr.warning(
+                '선택한 텍스트가 원본 메시지에 존재하지 않습니다.<br>' +
+                '단어 변환 기능 등이 적용된 경우, 해당 기능을 끄고 형광펜을 생성해주세요.',
+                '형광펜 저장 불가',
+                { timeOut: 5000, escapeHtml: false }
+            );
+            return; // DOM 수정 전에 반환
+        }
+    }
+
     try {
         // 단일 노드인 경우
         if (range.startContainer === range.endContainer && range.startContainer.nodeType === 3) {
@@ -2970,6 +3011,7 @@ function createHighlight(text, color, range, el) {
     }
 
     // actualText 사용 (TreeWalker로 추출한 텍스트)
+
     // ⭐ 수정: 현재 메시지 라벨도 함께 저장
     saveHighlight(charKey, chatFile, {
         id: hlId,
@@ -3765,7 +3807,16 @@ async function jumpToMessageInternal(mesId, hlId) {
                 const normalizedMesText = mesText.replace(/\s+/g, ' ').trim();
 
                 // 메시지에 하이라이트 텍스트가 존재하는지 확인
-                if (!normalizedMesText.includes(normalizedHlText)) {
+                let textFound = normalizedMesText.includes(normalizedHlText);
+
+                // ⭐ 단어 변환 호환: DOM에서 못 찾으면 원본 메시지에서도 확인
+                if (!textFound) {
+                    const originalMessage = chat[mesId]?.mes || '';
+                    const normalizedOriginal = originalMessage.replace(/\s+/g, ' ').trim();
+                    textFound = normalizedOriginal.includes(normalizedHlText);
+                }
+
+                if (!textFound) {
                     // 메시지가 변경되었거나 삭제됨
                     toastr.warning(
                         '이 형광펜이 저장된 메시지가 삭제되었거나 내용이 변경되었습니다.<br>' +
@@ -3829,7 +3880,16 @@ async function jumpToMessageInternal(mesId, hlId) {
                             const normalizedMesText = mesText.replace(/\s+/g, ' ').trim();
 
                             // 메시지에 하이라이트 텍스트가 존재하는지 확인
-                            if (!normalizedMesText.includes(normalizedHlText)) {
+                            let textFound = normalizedMesText.includes(normalizedHlText);
+
+                            // ⭐ 단어 변환 호환: DOM에서 못 찾으면 원본 메시지에서도 확인
+                            if (!textFound) {
+                                const originalMessage = chat[mesId]?.mes || '';
+                                const normalizedOriginal = originalMessage.replace(/\s+/g, ' ').trim();
+                                textFound = normalizedOriginal.includes(normalizedHlText);
+                            }
+
+                            if (!textFound) {
                                 toastr.warning(
                                     '이 형광펜이 저장된 메시지가 삭제되었거나 내용이 변경되었습니다.<br>' +
                                     '형광펜을 삭제하는 것을 권장합니다.',
@@ -4391,8 +4451,6 @@ function restoreHighlightsInChat() {
     // avatar 키와 date_added 키 둘 다 확인 (마이그레이션 전 데이터 호환)
     let currentChatHighlights = getHighlightsForChatFile(charKey, chatFile);
 
-    // ⭐ 디버그 로깅
-    console.log(`[SillyTavern-Highlighter] restoreHighlightsInChat: charKey=${charKey}, chatFile=${chatFile}, highlights count=${currentChatHighlights.length}`);
 
     // ⭐ 화면에 하이라이트 표시
     const allHighlights = [...currentChatHighlights];
@@ -4400,7 +4458,6 @@ function restoreHighlightsInChat() {
     allHighlights.forEach(hl => {
         const $mes = $(`.mes[mesid="${hl.mesId}"]`);
         if (!$mes.length) {
-            console.log(`[SillyTavern-Highlighter] mesId ${hl.mesId} not found in DOM for hl ${hl.id}`);
             return;
         }
 
@@ -4409,7 +4466,6 @@ function restoreHighlightsInChat() {
         const hlSwipeId = hl.swipeId !== undefined ? hl.swipeId : 0; // 하위 호환성
 
         if (currentSwipeId !== hlSwipeId) {
-            console.log(`[SillyTavern-Highlighter] swipeId mismatch for hl ${hl.id}: current=${currentSwipeId}, saved=${hlSwipeId}`);
             return; // 다른 스와이프는 스킵
         }
 
@@ -4423,10 +4479,29 @@ function restoreHighlightsInChat() {
             return;
         }
 
-        // ⭐ 복잡한 검증 없이 바로 적용 시도
-        // (highlightTextInElement가 실제 텍스트 매칭을 수행)
+        // ⭐ 형광펜 적용 시도
+        // 단어 변환 호환: 현재 DOM에서 실패하면 원본 텍스트로도 시도
         try {
-            highlightTextInElement($text[0], hl);
+            const success = highlightTextInElement($text[0], hl);
+
+            // DOM에서 실패한 경우, 원본 HTML로 재시도
+            if (!success) {
+                const originalHtml = $text.data('original-html');
+                if (originalHtml) {
+                    // 단어 변환이 적용된 상태 - 원본 HTML로 임시 교체 후 적용
+                    const currentHtml = $text.html();
+                    $text.html(originalHtml);
+
+                    const retrySuccess = highlightTextInElement($text[0], hl);
+
+                    if (retrySuccess) {
+                        // 형광펜 적용 성공 - original-html도 업데이트
+                        $text.data('original-html', $text.html());
+                    }
+
+                    // 단어 변환이 다시 적용되면 자동으로 처리됨
+                }
+            }
         } catch (e) {
             // 실패해도 무시 (텍스트가 변경되었을 수 있음)
         }
@@ -4517,7 +4592,7 @@ function highlightTextInElement(element, hl) {
 
     // 정규화된 텍스트에서 시작 위치 찾기
     const normalizedStartIndex = normalizedFullText.indexOf(normalizedSearchText);
-    if (normalizedStartIndex === -1) return;
+    if (normalizedStartIndex === -1) return false;
 
     const normalizedEndIndex = normalizedStartIndex + normalizedSearchText.length;
 
@@ -4575,6 +4650,8 @@ function highlightTextInElement(element, hl) {
 
         currentIndex = nodeEnd;
     });
+
+    return true; // 성공
 }
 
 function onCharacterChange() {
@@ -5693,13 +5770,8 @@ function showUpdateNotification(latestVersion) {
             });
 
             if (hasIndexKeys || hasDateAddedKeys) {
-                console.log(`[SillyTavern-Highlighter] Found keys to migrate: index=${hasIndexKeys}, date_added=${hasDateAddedKeys}`);
-                console.log(`[SillyTavern-Highlighter] Keys BEFORE migration:`, Object.keys(settings.highlights || {}));
-
                 settings = migrateSettings(settings);
                 extension_settings[extensionName] = settings;
-
-                console.log(`[SillyTavern-Highlighter] Keys AFTER migration:`, Object.keys(settings.highlights || {}));
 
                 // 즉시 저장
                 if (typeof saveSettingsDebounced.flush === 'function') {
@@ -5707,7 +5779,6 @@ function showUpdateNotification(latestVersion) {
                 } else {
                     saveSettingsDebounced();
                 }
-                console.log('[SillyTavern-Highlighter] Migration retry completed, save called');
 
                 // 화면 갱신
                 setTimeout(() => {
