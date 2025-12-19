@@ -49,12 +49,12 @@ async function addToWandMenu() {
             extensionsMenu.append(buttonHtml);
 
             // 형광펜 모드 버튼 클릭 이벤트
-            $("#highlighter_wand_button").on("click", function() {
+            $("#highlighter_wand_button").on("click", function () {
                 toggleHighlightMode();
             });
 
             // 독서노트 패널 버튼 클릭 이벤트
-            $("#highlighter_panel_button").on("click", function() {
+            $("#highlighter_panel_button").on("click", function () {
                 openPanel();
             });
 
@@ -172,7 +172,7 @@ function switchPreset(presetIndex) {
     updateDynamicColorStyles();
 
     // 채팅 내 모든 하이라이트 다시 그리기
-    $('.text-highlight').each(function() {
+    $('.text-highlight').each(function () {
         $(this).contents().unwrap();
     });
     restoreHighlightsInChat();
@@ -306,7 +306,7 @@ function bindColorCustomizerEvents() {
     $('.hl-quick-color-apply-btn').off('click');
 
     // 프리셋 탭 클릭 이벤트 (선택만, 적용은 X)
-    $('.hl-preset-tab').on('click', function() {
+    $('.hl-preset-tab').on('click', function () {
         const presetIndex = $(this).data('preset-index');
         if (presetIndex !== selectedPresetIndex) {
             selectedPresetIndex = presetIndex;
@@ -316,7 +316,7 @@ function bindColorCustomizerEvents() {
     });
 
     // 프리셋 적용 버튼
-    $('.hl-preset-apply-btn').on('click', function() {
+    $('.hl-preset-apply-btn').on('click', function () {
         if (selectedPresetIndex !== settings.currentPresetIndex) {
             switchPreset(selectedPresetIndex);
             // 적용 후 선택 상태 초기화
@@ -325,7 +325,7 @@ function bindColorCustomizerEvents() {
     });
 
     // 프리셋 이름 변경 버튼
-    $('.hl-preset-rename-btn').on('click', function() {
+    $('.hl-preset-rename-btn').on('click', function () {
         const preset = settings.colorPresets[selectedPresetIndex];
         const currentName = preset.name;
 
@@ -340,7 +340,7 @@ function bindColorCustomizerEvents() {
     });
 
     // 빠른 색상 적용 버튼
-    $('.hl-quick-color-apply-btn').on('click', function() {
+    $('.hl-quick-color-apply-btn').on('click', function () {
         const input = $('.hl-quick-color-field').val().trim();
         if (!input) {
             toastr.warning('색상 코드를 입력해주세요');
@@ -392,7 +392,7 @@ function bindColorCustomizerEvents() {
         toastr.success('색상이 적용되었습니다');
     });
 
-    $('.hl-bg-color').on('input', function() {
+    $('.hl-bg-color').on('input', function () {
         const $item = $(this).closest('.hl-color-item');
         const index = $item.data('index');
         const selectedColors = settings.colorPresets[selectedPresetIndex].colors;
@@ -416,7 +416,7 @@ function bindColorCustomizerEvents() {
         saveSettingsDebounced();
     });
 
-    $('.hl-opacity').on('input', function() {
+    $('.hl-opacity').on('input', function () {
         const $item = $(this).closest('.hl-color-item');
         const index = $item.data('index');
         const value = parseInt($(this).val());
@@ -434,7 +434,7 @@ function bindColorCustomizerEvents() {
 
             // 채팅 내 해당 색상의 모든 하이라이트 업데이트
             const color = selectedColors[index].bg;
-            $(`.text-highlight[data-color="${color}"]`).each(function() {
+            $(`.text-highlight[data-color="${color}"]`).each(function () {
                 const bgColor = getBackgroundColorFromHex(color);
                 $(this).css('background-color', bgColor);
             });
@@ -443,7 +443,7 @@ function bindColorCustomizerEvents() {
         saveSettingsDebounced();
     });
 
-    $('.hl-opacity-input').on('input', function() {
+    $('.hl-opacity-input').on('input', function () {
         const $item = $(this).closest('.hl-color-item');
         const index = $item.data('index');
         let value = parseInt($(this).val());
@@ -468,7 +468,7 @@ function bindColorCustomizerEvents() {
 
             // 채팅 내 해당 색상의 모든 하이라이트 업데이트
             const color = selectedColors[index].bg;
-            $(`.text-highlight[data-color="${color}"]`).each(function() {
+            $(`.text-highlight[data-color="${color}"]`).each(function () {
                 const bgColor = getBackgroundColorFromHex(color);
                 $(this).css('background-color', bgColor);
             });
@@ -477,7 +477,7 @@ function bindColorCustomizerEvents() {
         saveSettingsDebounced();
     });
 
-    $('.hl-text-color').on('input', function() {
+    $('.hl-text-color').on('input', function () {
         const $item = $(this).closest('.hl-color-item');
         const index = $item.data('index');
         const selectedColors = settings.colorPresets[selectedPresetIndex].colors;
@@ -495,7 +495,7 @@ function bindColorCustomizerEvents() {
         saveSettingsDebounced();
     });
 
-    $('.hl-use-default').on('change', function() {
+    $('.hl-use-default').on('change', function () {
         const $item = $(this).closest('.hl-color-item');
         const index = $item.data('index');
         const checked = $(this).is(':checked');
@@ -515,7 +515,7 @@ function bindColorCustomizerEvents() {
         saveSettingsDebounced();
     });
 
-    $('.hl-hex-input').on('input', function() {
+    $('.hl-hex-input').on('input', function () {
         const $item = $(this).closest('.hl-color-item');
         const index = $item.data('index');
         let hexValue = $(this).val().replace(/[^0-9A-Fa-f]/g, ''); // 유효한 문자만 허용
@@ -600,7 +600,7 @@ function updateAllHighlightColors(oldColor, newColor) {
     }
 
     // DOM의 하이라이트도 업데이트 (제거하지 않고 직접 수정)
-    $(`.text-highlight[data-color="${oldColor}"]`).each(function() {
+    $(`.text-highlight[data-color="${oldColor}"]`).each(function () {
         $(this).attr('data-color', newColor);
         const bgColor = getBackgroundColorFromHex(newColor);
         $(this).css('background-color', bgColor);
@@ -636,7 +636,7 @@ function importColors(e) {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function(event) {
+    reader.onload = function (event) {
         try {
             const data = JSON.parse(event.target.result);
 
@@ -690,7 +690,7 @@ function importColors(e) {
             }
 
             // 채팅 내 모든 하이라이트 제거하고 다시 그리기
-            $('.text-highlight').each(function() {
+            $('.text-highlight').each(function () {
                 $(this).contents().unwrap();
             });
 
@@ -764,10 +764,10 @@ const DEFAULT_SETTINGS = {
     colorPresets: null, // 색상 프리셋 배열 [기본, 프리셋1, 프리셋2, 프리셋3, 프리셋4, 프리셋5]
     currentPresetIndex: 0, // 현재 활성화된 프리셋 인덱스 (0: 기본)
     sortOptions: {
-        characters: 'modified', // 'modified', 'name'
         chats: 'modified', // 'modified', 'name'
         highlights: 'created' // 'created', 'message'
-    }
+    },
+    characterNames: {} // 캐릭터 이름 캐시 { charID: "Name" } - Unknown 방지용
 };
 
 let settings;
@@ -800,6 +800,7 @@ function validateAndRepairSettings(data) {
         // 필수 필드 존재 확인 (없으면 추가, 기존 값은 유지)
         if (!data.highlights) data.highlights = {};
         if (!data.characterMemos) data.characterMemos = {};
+        if (!data.characterNames) data.characterNames = {}; // 이름 캐시 초기화
         if (!data.chatMemos) data.chatMemos = {};
         if (!data.deleteMode) data.deleteMode = 'keep';
         if (data.darkMode === undefined) data.darkMode = false;
@@ -930,20 +931,20 @@ function getCharacterKey(charIndexOrKey) {
  */
 function findCharacterByKey(key) {
     if (!key) return null;
-    
+
     const keyStr = String(key);
-    
+
     // date_added로 찾기
     if (keyStr.includes('.') || parseFloat(keyStr) > 1000000000000) {
         return characters.find(c => String(c.date_added) === keyStr);
     }
-    
+
     // 인덱스로 찾기 (폴백)
     const index = parseInt(keyStr);
     if (!isNaN(index) && index >= 0 && index < characters.length) {
         return characters[index];
     }
-    
+
     return null;
 }
 
@@ -997,25 +998,25 @@ function migrateToDateAddedKeys(data) {
         // 숫자만 있거나, 3자리 이하 숫자 = 인덱스
         return /^\d+$/.test(key) && parseInt(key) < 1000;
     });
-    
+
     if (!hasIndexKeys) {
         console.log('[SillyTavern-Highlighter] No index-based keys found, migration not needed');
         return;
     }
 
     console.log('[SillyTavern-Highlighter] Migrating character keys from index to date_added...');
-    
+
     const newHighlights = {};
     let migratedCount = 0;
     let failedCount = 0;
 
     for (const oldKey in data.highlights) {
         const charKey = getCharacterKey(oldKey);
-        
+
         if (charKey) {
             newHighlights[charKey] = data.highlights[oldKey];
             migratedCount++;
-            
+
             const char = findCharacterByKey(charKey);
             console.log(`[SillyTavern-Highlighter] Migrated: index ${oldKey} → date_added ${charKey} (${char?.name || 'Unknown'})`);
         } else {
@@ -1051,7 +1052,7 @@ function migrateToDateAddedKeys(data) {
                 const oldCharId = parts[0];
                 const chatFile = parts.slice(1).join('_'); // chatFile에 _가 있을 수 있음
                 const newCharKey = getCharacterKey(oldCharId);
-                
+
                 if (newCharKey) {
                     newChatMemos[`${newCharKey}_${chatFile}`] = data.chatMemos[oldKey];
                 } else {
@@ -1065,13 +1066,58 @@ function migrateToDateAddedKeys(data) {
     }
 
     console.log(`[SillyTavern-Highlighter] Migration summary: ${migratedCount} success, ${failedCount} failed`);
-    
+
     if (migratedCount > 0) {
         // ⭐ extension_settings에 즉시 반영 (디바운스 우회)
         if (typeof extension_settings !== 'undefined') {
             extension_settings[extensionName] = data;
         }
     }
+
+    // ⭐ 색상 연동을 위한 ID 연결 작업 수행
+    linkExistingHighlightsToSlots(data);
+}
+
+/**
+ * 기존 형광펜들의 색상을 현재 프리셋의 슬롯(Index)과 연결
+ * (이 작업을 통해 색상 프리셋을 변경하면 기존 형광펜 색상도 같이 바뀌게 됨)
+ */
+function linkExistingHighlightsToSlots(data) {
+    if (!data.highlights) return;
+
+    let linkedCount = 0;
+    const currentColors = getColorsFromPreset(data); // 현재 프리셋 색상 가져오기
+
+    for (const charId in data.highlights) {
+        for (const chatFile in data.highlights[charId]) {
+            const chatData = data.highlights[charId][chatFile];
+            if (chatData && Array.isArray(chatData.highlights)) {
+                chatData.highlights.forEach(hl => {
+                    // colorIndex가 없거나 유효하지 않은 경우
+                    if (hl.colorIndex === undefined || hl.colorIndex === null) {
+                        // 현재 색상과 일치하는 슬롯 찾기
+                        const slotIndex = currentColors.findIndex(c => c.bg === hl.color);
+                        if (slotIndex !== -1) {
+                            hl.colorIndex = slotIndex;
+                            linkedCount++;
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    if (linkedCount > 0) {
+        console.log(`[SillyTavern-Highlighter] Linked ${linkedCount} highlights to color slots`);
+    }
+}
+
+// 데이터 객체에서 바로 색상 가져오기 (getColors는 전역 settings 의존하므로 별도 구현)
+function getColorsFromPreset(data) {
+    if (data.colorPresets && data.colorPresets[data.currentPresetIndex]) {
+        return data.colorPresets[data.currentPresetIndex].colors;
+    }
+    return data.customColors || []; // 폴백
 }
 
 function createHighlighterUI() {
@@ -1157,7 +1203,7 @@ function bindUIEvents() {
     }
 
     // 외부 클릭 시 플로팅 메뉴 닫기
-    $(document).on('click', function(e) {
+    $(document).on('click', function (e) {
         const $floatingContainer = $('#highlighter-floating-container');
         const $floatingMenu = $('#highlighter-floating-menu');
 
@@ -1463,6 +1509,15 @@ function updateBreadcrumb() {
             </button>
         `;
 
+        // 이름 캐시 업데이트 (표시될 때마다 최신화)
+        if (selectedCharacter && charName !== 'Unknown') {
+            if (!settings.characterNames) settings.characterNames = {};
+            if (settings.characterNames[selectedCharacter] !== charName) {
+                settings.characterNames[selectedCharacter] = charName;
+                saveSettingsDebounced();
+            }
+        }
+
         // More 메뉴 버튼 추가 (채팅 목록일 때만)
         html += `
             <button class="hl-more-btn" id="hl-breadcrumb-more-btn" title="더보기">
@@ -1548,7 +1603,7 @@ function showSortMenu(e) {
     });
 
     // 메뉴 아이템 클릭
-    menu.find('.hl-sort-menu-item').on('click', function() {
+    menu.find('.hl-sort-menu-item').on('click', function () {
         const value = $(this).data('value');
 
         if (sortType === 'highlights') {
@@ -1661,7 +1716,7 @@ function renderCharacterList($container) {
 
     charIds.forEach(charKey => {
         const charData = findCharacterByKey(charKey);
-        const charName = charData?.name || 'Unknown';
+        const charName = getCharacterNameByKey(charKey);
         const totalHighlights = getTotalHighlightsForCharacter(charKey);
         const avatar = charData?.avatar ?
             `/thumbnail?type=avatar&file=${charData.avatar}&t=${timestamp}` :
@@ -2018,8 +2073,17 @@ function renderHighlightList($container, characterId, chatFile, activeTab) {
         // ⭐ 수정: 저장된 라벨이 있으면 사용, 없으면 현재 chat으로부터 가져오기 (하위 호환성)
         const label = hl.label || getMessageLabel(hl.mesId);
 
+        // ⭐ 동적 색상 적용: Slot ID가 있으면 현재 프리셋의 해당 슬롯 색상 사용
+        let displayColor = hl.color;
+        if (hl.colorIndex !== undefined) {
+            const currentColors = getColors();
+            if (currentColors[hl.colorIndex]) {
+                displayColor = currentColors[hl.colorIndex].bg;
+            }
+        }
+
         const item = `
-            <div class="hl-highlight-item" style="--highlight-color: ${hl.color}" data-mes-id="${hl.mesId}" data-hl-id="${hl.id}">
+            <div class="hl-highlight-item" style="--highlight-color: ${displayColor}" data-mes-id="${hl.mesId}" data-hl-id="${hl.id}">
                 <div class="hl-content">
                     <div class="hl-text">${hl.text}</div>
                     ${hl.note ? `<div class="hl-note"><i class="fa-solid fa-note-sticky"></i><span>${hl.note}</span></div>` : ''}
@@ -2038,7 +2102,7 @@ function renderHighlightList($container, characterId, chatFile, activeTab) {
     });
 
     // 하이라이트 텍스트 클릭 시 이동 - 중복 방지
-    $('.hl-highlight-item .hl-text').off('click').on('click', function(e) {
+    $('.hl-highlight-item .hl-text').off('click').on('click', function (e) {
         const $item = $(this).closest('.hl-highlight-item');
         const mesId = $item.data('mesId');
         const hlId = $item.data('hlId');
@@ -2305,7 +2369,7 @@ function showColorMenu(x, y, text, range, el) {
     });
 
     // document click 이벤트 등록 (추적 가능하도록)
-    colorMenuDocClickHandler = function(e) {
+    colorMenuDocClickHandler = function (e) {
         if (!$(e.target).closest('#highlight-color-menu').length) {
             removeColorMenu();
         }
@@ -2423,6 +2487,7 @@ function createHighlight(text, color, range, el) {
             span.setAttribute('data-hl-id', hlId);
             span.setAttribute('data-color', color);
             span.style.backgroundColor = getBackgroundColorFromHex(color);
+
             range.surroundContents(span);
 
             // 이벤트는 위임으로 처리되므로 여기서는 바인딩 불필요
@@ -2500,6 +2565,17 @@ function createHighlight(text, color, range, el) {
         timestamp: Date.now(),
         textOffset: textOffset // 텍스트 시작 위치
     });
+
+    // ⭐ 캐릭터 이름 캐싱 (Unknown 방지)
+    const charName = getCharacterNameByKey(charKey);
+    // getCharacterNameByKey는 이미 캐시를 확인하지만,
+    // 현재는 라이브 데이터를 우선했을 수 있으므로 명시적으로 저장
+    const liveChar = findCharacterByKey(charKey);
+    if (liveChar && liveChar.name) {
+        if (!settings.characterNames) settings.characterNames = {};
+        settings.characterNames[charKey] = liveChar.name;
+        saveSettingsDebounced();
+    }
 
     toastr.success('형광펜 추가');
 
@@ -2639,7 +2715,7 @@ function showHighlightContextMenu(hlId, x, y) {
     });
 
     // 우클릭 방지
-    $menu.on('contextmenu', function(e) {
+    $menu.on('contextmenu', function (e) {
         e.preventDefault();
     });
 
@@ -2680,6 +2756,7 @@ function changeHighlightColor(hlId, color, charId, chatFile) {
 
     const hl = result.highlight;
     hl.color = color;
+    hl.colorIndex = getColorIndex(color); // 색상 인덱스 업데이트
     $(`.text-highlight[data-hl-id="${hlId}"]`).attr('data-color', color).css('background-color', getBackgroundColorFromHex(color));
 
     saveSettingsDebounced();
@@ -2853,7 +2930,7 @@ function deleteHighlight(hlId, charId, chatFile) {
 
     $('body').append(modal);
 
-    $('.hl-modal-delete').on('click', function() {
+    $('.hl-modal-delete').on('click', function () {
         const chatData = settings.highlights[hlCharId]?.[hlChatFile];
         if (!chatData) return;
 
@@ -2870,11 +2947,11 @@ function deleteHighlight(hlId, charId, chatFile) {
         toastr.success('삭제됨');
     });
 
-    $('.hl-modal-close, .hl-modal-cancel').on('click', function() {
+    $('.hl-modal-close, .hl-modal-cancel').on('click', function () {
         $('#highlight-delete-modal').remove();
     });
 
-    $('.hl-modal-overlay').on('click', function(e) {
+    $('.hl-modal-overlay').on('click', function (e) {
         if (e.target === this) $(this).remove();
     });
 }
@@ -2918,7 +2995,7 @@ function deleteCharacterHighlights() {
 
     $('body').append(modal);
 
-    $('.hl-modal-delete').on('click', function() {
+    $('.hl-modal-delete').on('click', function () {
         // DOM에서 하이라이트 제거
         const charHighlights = settings.highlights[selectedCharacter];
         if (charHighlights) {
@@ -2927,7 +3004,7 @@ function deleteCharacterHighlights() {
                 if (chatData && chatData.highlights) {
                     chatData.highlights.forEach(hl => {
                         const $highlights = $(`.text-highlight[data-hl-id="${hl.id}"]`);
-                        $highlights.each(function() {
+                        $highlights.each(function () {
                             $(this).contents().unwrap();
                         });
                     });
@@ -2943,11 +3020,11 @@ function deleteCharacterHighlights() {
         toastr.success('캐릭터 형광펜 전체 삭제됨');
     });
 
-    $('.hl-modal-close, .hl-modal-cancel').on('click', function() {
+    $('.hl-modal-close, .hl-modal-cancel').on('click', function () {
         $('#highlight-delete-all-modal').remove();
     });
 
-    $('.hl-modal-overlay').on('click', function(e) {
+    $('.hl-modal-overlay').on('click', function (e) {
         if (e.target === this) $(this).remove();
     });
 }
@@ -2993,11 +3070,11 @@ function deleteChatHighlights() {
 
     $('body').append(modal);
 
-    $('.hl-modal-delete').on('click', function() {
+    $('.hl-modal-delete').on('click', function () {
         // DOM에서 하이라이트 제거
         chatData.highlights.forEach(hl => {
             const $highlights = $(`.text-highlight[data-hl-id="${hl.id}"]`);
-            $highlights.each(function() {
+            $highlights.each(function () {
                 $(this).contents().unwrap();
             });
         });
@@ -3010,11 +3087,11 @@ function deleteChatHighlights() {
         toastr.success('채팅 형광펜 전체 삭제됨');
     });
 
-    $('.hl-modal-close, .hl-modal-cancel').on('click', function() {
+    $('.hl-modal-close, .hl-modal-cancel').on('click', function () {
         $('#highlight-delete-chat-modal').remove();
     });
 
-    $('.hl-modal-overlay').on('click', function(e) {
+    $('.hl-modal-overlay').on('click', function (e) {
         if (e.target === this) $(this).remove();
     });
 }
@@ -3046,17 +3123,17 @@ async function jumpToMessage(mesId, hlId) {
     // 캐릭터가 다른 경우 캐릭터 변경
     if (targetCharKeyStr !== currentCharKeyStr && targetCharKey !== null) {
         const targetChar = findCharacterByKey(targetCharKey);
-        const charName = targetChar?.name || 'Unknown';
+        const charName = getCharacterNameByKey(targetCharKey);
 
         // 캐릭터가 삭제되었는지 확인
         if (!targetChar || charName === 'Unknown') {
             showDeletedChatAlert('character', charName || '알 수 없음', targetChatFile);
             return;
         }
-        
+
         // date_added 키로 캐릭터를 찾았으니, 현재 배열에서의 인덱스를 찾음
         const targetCharIndex = characters.findIndex(c => String(c.date_added) === targetCharKeyStr);
-        
+
         if (targetCharIndex === -1) {
             toastr.error('캐릭터를 찾을 수 없습니다');
             return;
@@ -3246,7 +3323,7 @@ function showDeletedChatAlert(type, charName, chatFile) {
 
     $('body').append(modal);
 
-    $('.hl-modal-close, .hl-modal-confirm').on('click', function() {
+    $('.hl-modal-close, .hl-modal-confirm').on('click', function () {
         $('#highlight-deleted-alert-modal').remove();
     });
 
@@ -3457,7 +3534,7 @@ function showBackupModal() {
 
     $('body').append(modal);
 
-    $('.hl-modal-save').on('click', function() {
+    $('.hl-modal-save').on('click', function () {
         const format = $('input[name="backup-format"]:checked').val();
         const scope = $('input[name="backup-scope"]:checked').val();
 
@@ -3470,11 +3547,11 @@ function showBackupModal() {
         $('#highlight-backup-modal').remove();
     });
 
-    $('.hl-modal-close, .hl-modal-cancel').on('click', function() {
+    $('.hl-modal-close, .hl-modal-cancel').on('click', function () {
         $('#highlight-backup-modal').remove();
     });
 
-    $('.hl-modal-overlay').on('click', function(e) {
+    $('.hl-modal-overlay').on('click', function (e) {
         if (e.target === this) $(this).remove();
     });
 }
@@ -3500,7 +3577,11 @@ function exportHighlightsJSON(scope) {
         version: '1.0.0',
         exportDate: Date.now(),
         scope: scope,
-        highlights: dataToExport
+        highlights: dataToExport,
+        // ⭐ 컨텐츠 백업에는 메모와 이름 캐시만 포함 (설정 제외)
+        characterMemos: scope === 'all' ? settings.characterMemos : undefined,
+        chatMemos: scope === 'all' ? settings.chatMemos : undefined,
+        characterNames: scope === 'all' ? settings.characterNames : undefined
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -3676,21 +3757,38 @@ function importHighlights(file) {
     reader.onload = function (e) {
         try {
             const data = JSON.parse(e.target.result);
-
             if (!data.version || !data.highlights) {
                 throw new Error('잘못된 파일');
             }
 
             if (confirm('기존 데이터와 병합하시겠습니까?\n취소를 누르면 덮어씁니다.')) {
+                // 1. 형광펜 데이터 병합
                 settings.highlights = deepMerge(settings.highlights, data.highlights);
+
+                // 2. 기타 컨텐츠 데이터 병합
+                if (data.characterMemos) settings.characterMemos = Object.assign({}, settings.characterMemos, data.characterMemos);
+                if (data.chatMemos) settings.chatMemos = Object.assign({}, settings.chatMemos, data.chatMemos);
+                if (data.characterNames) settings.characterNames = Object.assign({}, settings.characterNames, data.characterNames);
+                // 설정값은 여기서 처리하지 않음
+
             } else {
+                // 덮어쓰기 모드
                 settings.highlights = data.highlights;
+
+                // 기타 컨텐츠 데이터도 덮어쓰기 (파일에 있는 경우만)
+                if (data.characterMemos) settings.characterMemos = data.characterMemos;
+                if (data.chatMemos) settings.chatMemos = data.chatMemos;
+                if (data.characterNames) settings.characterNames = data.characterNames;
+                // 설정값은 여기서 처리하지 않음
             }
+
+            // 데이터 검증 및 초기화
+            settings = validateAndRepairSettings(settings);
 
             saveSettingsDebounced();
             renderView();
 
-            // 채팅 내 하이라이트 복원 (약간의 딜레이로 확실하게)
+            // 채팅 내 하이라이트 복원
             setTimeout(() => {
                 restoreHighlightsInChat();
             }, 300);
@@ -3704,6 +3802,92 @@ function importHighlights(file) {
 
     reader.readAsText(file);
     $('#hl-import-file-input').val('');
+}
+
+// ⭐ 환경설정 및 프리셋 내보내기 (Setting Panel용)
+function exportConfiguration() {
+    const configData = {
+        version: '1.0.0',
+        exportDate: Date.now(),
+        type: 'configuration', // 식별자
+        colorPresets: settings.colorPresets,
+        customColors: settings.customColors,
+        generalSettings: {
+            deleteMode: settings.deleteMode,
+            darkMode: settings.darkMode,
+            buttonPosition: settings.buttonPosition,
+            showFloatingBtn: settings.showFloatingBtn,
+            showWandButton: settings.showWandButton,
+            alwaysHighlightMode: settings.alwaysHighlightMode,
+            sortOptions: settings.sortOptions
+        }
+    };
+
+    const blob = new Blob([JSON.stringify(configData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `highlighter_config_${timestamp}.json`;
+    a.click();
+
+    URL.revokeObjectURL(url);
+    toastr.success('설정 백업 완료');
+}
+
+// ⭐ 환경설정 및 프리셋 불러오기 (Setting Panel용)
+function importConfiguration(file) {
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+        try {
+            const data = JSON.parse(e.target.result);
+
+            // 파일 유효성 검사
+            if (!data.version || (!data.colorPresets && !data.generalSettings)) {
+                throw new Error('올바른 설정 파일이 아닙니다');
+            }
+
+            if (confirm('현재 설정을 이 파일 내용으로 교체하시겠습니까?')) {
+                // 1. 색상 설정 복원
+                if (data.colorPresets) settings.colorPresets = data.colorPresets;
+                if (data.customColors) settings.customColors = data.customColors;
+
+                // 2. 일반 설정 복원
+                if (data.generalSettings) {
+                    const s = data.generalSettings;
+                    if (s.deleteMode) settings.deleteMode = s.deleteMode;
+                    if (s.darkMode !== undefined) settings.darkMode = s.darkMode;
+                    if (s.buttonPosition) settings.buttonPosition = s.buttonPosition;
+                    if (s.showFloatingBtn !== undefined) settings.showFloatingBtn = s.showFloatingBtn;
+                    if (s.showWandButton !== undefined) settings.showWandButton = s.showWandButton;
+                    if (s.alwaysHighlightMode !== undefined) settings.alwaysHighlightMode = s.alwaysHighlightMode;
+                    if (s.sortOptions) settings.sortOptions = s.sortOptions;
+                }
+
+                // UI 반영 (설정 패널 값 업데이트)
+                $('#hl_setting_delete_mode').val(settings.deleteMode);
+                $('#hl_setting_button_position').val(settings.buttonPosition);
+                $('#hl_setting_show_floating_btn').prop('checked', settings.showFloatingBtn !== false);
+                $('#hl_setting_show_wand_button').prop('checked', settings.showWandButton !== false);
+                $('#hl_setting_always_highlight_mode').prop('checked', settings.alwaysHighlightMode || false);
+
+                applyButtonPosition();
+                updateWandMenuVisibility();
+                initColorCustomizer(); // 색상 커스터마이저 UI 갱신 (중요)
+
+                saveSettingsDebounced();
+                toastr.success('설정 불러오기 완료');
+            }
+
+        } catch (error) {
+            toastr.error('파일 오류: ' + error.message);
+        }
+    };
+
+    reader.readAsText(file);
+    $('#hl-color-import-input').val(''); // 파일 인풋 초기화
 }
 
 // ====================================
@@ -3734,7 +3918,18 @@ function getCharacterName(charId) {
  */
 function getCharacterNameByKey(key) {
     const char = findCharacterByKey(key);
-    return char?.name || 'Unknown';
+    // 1. 현재 로드된 캐릭터 목록에서 찾기
+    if (char && char.name) {
+        return char.name;
+    }
+
+    // 2. 캐시된 이름 확인 (Unknown 방지)
+    if (settings.characterNames && settings.characterNames[key]) {
+        return settings.characterNames[key];
+    }
+
+    // 3. 찾을 수 없음
+    return 'Unknown';
 }
 
 function getTotalHighlightsForCharacter(charId) {
@@ -3855,7 +4050,7 @@ function restoreHighlightsInChat() {
             // 정규화된 텍스트로 매칭 확인
             if (normalizedMesText.includes(normalizedHlText)) {
                 try {
-                    highlightTextInElement($text[0], hl.text, hl.id, hl.color);
+                    highlightTextInElement($text[0], hl);
                 } catch (e) {
                     console.warn('[SillyTavern-Highlighter] Failed to restore highlight:', e);
                 }
@@ -3867,8 +4062,16 @@ function restoreHighlightsInChat() {
 }
 
 // 여러 문단에 걸친 텍스트를 하이라이트하는 헬퍼 함수
-function highlightTextInElement(element, searchText, hlId, color) {
-    const bgColor = getBackgroundColorFromHex(color);
+function highlightTextInElement(element, hl) {
+    // ⭐ 동적 색상 적용: Slot ID가 있으면 현재 프리셋의 해당 슬롯 색상 사용
+    let displayColor = hl.color;
+    if (hl.colorIndex !== undefined) {
+        const currentColors = getColors();
+        if (currentColors[hl.colorIndex]) {
+            displayColor = currentColors[hl.colorIndex].bg;
+        }
+    }
+    const bgColor = getBackgroundColorFromHex(displayColor);
 
     // ⭐ 불필요한 요소 선택자
     const unwantedSelectors = [
@@ -3917,7 +4120,7 @@ function highlightTextInElement(element, searchText, hlId, color) {
     }
 
     // 줄바꿈 정규화 및 매핑 테이블 생성
-    const normalizedSearchText = searchText.replace(/\s+/g, ' ').trim();
+    const normalizedSearchText = hl.text.replace(/\s+/g, ' ').trim();
     let normalizedFullText = '';
     const indexMap = []; // normalizedFullText의 각 문자가 fullText의 어느 인덱스에 해당하는지
 
@@ -3971,8 +4174,8 @@ function highlightTextInElement(element, searchText, hlId, color) {
 
             const span = document.createElement('span');
             span.className = 'text-highlight';
-            span.setAttribute('data-hl-id', hlId);
-            span.setAttribute('data-color', color);
+            span.setAttribute('data-hl-id', hl.id);
+            span.setAttribute('data-color', hl.color);
             span.style.backgroundColor = bgColor;
             span.textContent = highlight;
 
@@ -3988,8 +4191,8 @@ function highlightTextInElement(element, searchText, hlId, color) {
             // 노드 전체를 하이라이트
             const span = document.createElement('span');
             span.className = 'text-highlight';
-            span.setAttribute('data-hl-id', hlId);
-            span.setAttribute('data-color', color);
+            span.setAttribute('data-hl-id', hl.id);
+            span.setAttribute('data-color', hl.color);
             span.style.backgroundColor = bgColor;
             span.textContent = node.textContent;
 
@@ -4096,7 +4299,7 @@ function onChatChange() {
         if (isChatRenamed) {
             // ⭐ checkChatFileChanges에서 이미 처리했을 수 있으니 확인
             const alreadyMoved = !settings.highlights[currentCharId]?.[previousChatFile] &&
-                                 settings.highlights[currentCharId]?.[currentChatFile];
+                settings.highlights[currentCharId]?.[currentChatFile];
 
             // 실제 채팅 제목 변경 - 데이터 이동
             if (settings.highlights[currentCharId]?.[previousChatFile]) {
@@ -4295,13 +4498,19 @@ function checkCharacterChanges() {
         // 캐릭터 리스트에 있는 모든 캐릭터 체크
         const charIds = Object.keys(settings.highlights);
         for (const charId of charIds) {
-            const currentData = characters[charId];
-            if (!currentData) continue;
+            const charData = findCharacterByKey(charId);
+            if (!charData) continue;
 
-            const cached = characterCache[charId];
-            const currentHash = `${currentData.name}|${currentData.avatar}`;
+            const currentHash = `${charData.name}|${charData.avatar}`;
 
-            if (cached !== currentHash) {
+            // 이름 캐시 업데이트
+            if (charData.name && (!settings.characterNames || settings.characterNames[charId] !== charData.name)) {
+                if (!settings.characterNames) settings.characterNames = {};
+                settings.characterNames[charId] = charData.name;
+                saveSettingsDebounced();
+            }
+
+            if (characterCache[charId] !== currentHash) {
                 characterCache[charId] = currentHash;
                 hasChanges = true;
             }
@@ -4333,7 +4542,7 @@ function initCharacterCache() {
     characterCache = {};
     const charIds = Object.keys(settings.highlights);
     for (const charId of charIds) {
-        const charData = characters[charId];
+        const charData = findCharacterByKey(charId);
         if (charData) {
             characterCache[charId] = `${charData.name}|${charData.avatar}`;
         }
@@ -4557,12 +4766,12 @@ function showBreadcrumbMoreMenu(e) {
     });
 
     // 이벤트 바인딩
-    $('[data-action="delete-chat"]').on('click', function() {
+    $('[data-action="delete-chat"]').on('click', function () {
         $('#hl-breadcrumb-more-menu').remove();
         deleteChatHighlights();
     });
 
-    $('[data-action="delete-character"]').on('click', function() {
+    $('[data-action="delete-character"]').on('click', function () {
         $('#hl-breadcrumb-more-menu').remove();
         deleteCharacterHighlights();
     });
@@ -4644,12 +4853,12 @@ function showHeaderMoreMenu(e) {
     });
 
     // 이벤트 바인딩
-    $('[data-action="export"]').on('click', function() {
+    $('[data-action="export"]').on('click', function () {
         $('#hl-header-more-menu').remove();
         exportHighlights();
     });
 
-    $('[data-action="import"]').on('click', function() {
+    $('[data-action="import"]').on('click', function () {
         $('#hl-header-more-menu').remove();
         $('#hl-import-file-input').click();
     });
@@ -4876,6 +5085,7 @@ function showUpdateNotification(latestVersion) {
     }
 }
 
+
 (async function () {
     console.log('[SillyTavern-Highlighter] Loading...');
 
@@ -4989,12 +5199,17 @@ function showUpdateNotification(latestVersion) {
         // 색상 커스터마이저 초기화
         initColorCustomizer();
 
-        $('#hl-export-colors').on('click', exportColors);
-        $('#hl-import-colors').on('click', () => $('#hl-color-import-input').click());
-        $('#hl-color-import-input').on('change', importColors);
+        // 설정 내보내기/불러오기 (기존 색상 내보내기 대체)
+        $('#hl-export-colors').off('click').on('click', exportConfiguration);
+        $('#hl-import-colors').off('click').on('click', () => $('#hl-color-import-input').click());
+        $('#hl-color-import-input').off('change').on('change', function () {
+            if (this.files && this.files[0]) {
+                importConfiguration(this.files[0]);
+            }
+        });
 
         // 업데이트 확인 버튼
-        $('#hl-check-update-btn').on('click', async function() {
+        $('#hl-check-update-btn').on('click', async function () {
             const $btn = $(this);
             const $status = $('#hl-update-status');
 
@@ -5075,11 +5290,11 @@ function showUpdateNotification(latestVersion) {
         if (!migrationRetried && characters && characters.length > 0) {
             migrationRetried = true;
             console.log('[SillyTavern-Highlighter] Retrying migration after characters loaded');
-            
+
             // 인덱스 키가 남아있는지 확인
             const keys = Object.keys(settings.highlights || {});
             const hasIndexKeys = keys.some(key => /^\d+$/.test(key) && parseInt(key) < 1000);
-            
+
             if (hasIndexKeys) {
                 settings = migrateSettings(settings);
                 extension_settings[extensionName] = settings;
@@ -5093,7 +5308,7 @@ function showUpdateNotification(latestVersion) {
             }
         }
     };
-    
+
     // 여러 타이밍에서 재시도
     setTimeout(retryMigration, 1000);  // 1초 후
     setTimeout(retryMigration, 3000);  // 3초 후
@@ -5101,7 +5316,7 @@ function showUpdateNotification(latestVersion) {
         retryMigration();
         onCharacterChange();
     });
-    
+
     eventSource.on(event_types.CHAT_CHANGED, onChatChange);
     eventSource.on(event_types.MESSAGE_RECEIVED, restoreHighlightsInChat);
     eventSource.on(event_types.MESSAGE_SENT, restoreHighlightsInChat);
