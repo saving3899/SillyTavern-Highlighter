@@ -894,10 +894,11 @@ function validateAndRepairSettings(data) {
  * @returns {string|null} date_added 키 (예: "1761785686114.2478")
  */
 function getCharacterKey(charIndexOrKey) {
-    // 이미 date_added 형식인 경우 (13자리 이상 숫자)
+    // 이미 date_added 형식인 경우 (숫자형 문자열 또는 숫자)
     if (typeof charIndexOrKey === 'string' || typeof charIndexOrKey === 'number') {
         const keyStr = String(charIndexOrKey);
-        if (keyStr.includes('.') && parseFloat(keyStr) > 1000000000000) {
+        // ⭐ 수정: includes('.') || parseFloat(...)로 변경하여 정수 형태의 타임스탬프도 키로 인식 개선
+        if (keyStr.includes('.') || (parseFloat(keyStr) > 1000000000000)) {
             return keyStr; // 이미 date_added 키
         }
     }
@@ -936,7 +937,19 @@ function findCharacterByKey(key) {
 
     // date_added로 찾기
     if (keyStr.includes('.') || parseFloat(keyStr) > 1000000000000) {
-        return characters.find(c => String(c.date_added) === keyStr);
+        return characters.find(c => {
+            // 1. 단순 문자열 비교
+            if (String(c.date_added) === keyStr) return true;
+
+            // 2. 숫자형 느슨한 비교 (소수점 정밀도 차이 또는 .0 접미사 등 호환성)
+            const numA = Number(c.date_added);
+            const numB = Number(keyStr);
+            if (!isNaN(numA) && !isNaN(numB) && Math.abs(numA - numB) < 0.001) {
+                return true;
+            }
+
+            return false;
+        });
     }
 
     // 인덱스로 찾기 (폴백)
