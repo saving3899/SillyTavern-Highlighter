@@ -2900,9 +2900,37 @@ function createHighlight(text, color, range, el) {
     // ⭐ 단어 변환 호환성: DOM 수정 전에 원본 메시지에서 텍스트 확인
     const originalMessage = chat[mesId]?.mes || '';
     const normalizedActualText = actualText.replace(/\s+/g, ' ').trim();
+
+    // 마크다운 기호 제거하여 비교 (모든 일반 마크다운)
+    const strippedOriginalMessage = originalMessage
+        // 인라인 스타일
+        .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')  // ***bold italic*** → bold italic
+        .replace(/\*\*([^*]+)\*\*/g, '$1')      // **bold** → bold
+        .replace(/\*([^*]+)\*/g, '$1')          // *italic* → italic
+        .replace(/___([^_]+)___/g, '$1')        // ___bold italic___ → bold italic
+        .replace(/__([^_]+)__/g, '$1')          // __bold__ → bold
+        .replace(/_([^_]+)_/g, '$1')            // _italic_ → italic
+        .replace(/~~([^~]+)~~/g, '$1')          // ~~strikethrough~~ → strikethrough
+        .replace(/```[\s\S]*?```/g, '')         // ```code block``` → 제거
+        .replace(/`([^`]+)`/g, '$1')            // `code` → code
+        // 링크 및 이미지
+        .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')  // ![alt](url) → alt
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')   // [text](url) → text
+        // 헤더
+        .replace(/^#{1,6}\s+/gm, '')            // # Header → Header
+        // 인용문 및 리스트
+        .replace(/^>\s+/gm, '')                 // > quote → quote
+        .replace(/^[-*+]\s+/gm, '')             // - list → list
+        .replace(/^\d+\.\s+/gm, '')             // 1. list → list
+        // 수평선
+        .replace(/^[-*_]{3,}$/gm, '')           // --- or *** → 제거
+        // 공백 정리
+        .replace(/\s+/g, ' ').trim();
     const normalizedOriginalMessage = originalMessage.replace(/\s+/g, ' ').trim();
 
-    if (!normalizedOriginalMessage.includes(normalizedActualText)) {
+    // 마크다운 제거된 버전과 원본 버전 둘 다 확인
+    if (!normalizedOriginalMessage.includes(normalizedActualText) &&
+        !strippedOriginalMessage.includes(normalizedActualText)) {
         // 단어 변환 등으로 변환된 텍스트일 수 있음
         const $mesText = $mes.find('.mes_text');
         const originalHtml = $mesText.data('original-html');
