@@ -885,74 +885,67 @@ function validateAndRepairSettings(data) {
 }
 
 // ====================================
-// 캐릭터 고유 키 관리 (date_added 기반) - 마이그레이션보다 먼저 정의 필요
+// 캐릭터 고유 키 관리 (avatar 기반) - SillyTavern 네이티브 방식
 // ====================================
 
 /**
- * 캐릭터의 고유 키를 반환 (date_added 타임스탬프)
- * @param {number|string} charIndexOrKey - 배열 인덱스 또는 이미 변환된 키
- * @returns {string|null} date_added 키 (예: "1761785686114.2478")
+ * 캐릭터의 고유 키를 반환 (avatar 파일명)
+ * @param {number|string|object} charIndexOrKey - 배열 인덱스, avatar 문자열, 또는 캐릭터 객체
+ * @returns {string|null} avatar 키 (예: "MyCharacter.png")
  */
 function getCharacterKey(charIndexOrKey) {
-    // 이미 date_added 형식인 경우 (숫자형 문자열 또는 숫자)
-    if (typeof charIndexOrKey === 'string' || typeof charIndexOrKey === 'number') {
-        const keyStr = String(charIndexOrKey);
-        // ⭐ 수정: includes('.') || parseFloat(...)로 변경하여 정수 형태의 타임스탬프도 키로 인식 개선
-        if (keyStr.includes('.') || (parseFloat(keyStr) > 1000000000000)) {
-            return keyStr; // 이미 date_added 키
+    // 캐릭터 객체가 직접 전달된 경우
+    if (typeof charIndexOrKey === 'object' && charIndexOrKey !== null && charIndexOrKey.avatar) {
+        return charIndexOrKey.avatar;
+    }
+
+    if (typeof charIndexOrKey === 'string') {
+        // 이미 avatar 형식인 경우 (.png로 끝남)
+        if (charIndexOrKey.endsWith('.png')) {
+            return charIndexOrKey;
+        }
+        // 레거시: date_added 형식인 경우 (숫자형 문자열) - 변환 시도
+        if (charIndexOrKey.includes('.') || parseFloat(charIndexOrKey) > 1000000000000) {
+            const char = findCharacterByDateAdded(charIndexOrKey);
+            return char ? char.avatar : null;
         }
     }
 
     // 인덱스로 간주하고 변환
     const index = typeof charIndexOrKey === 'string' ? parseInt(charIndexOrKey) : charIndexOrKey;
-    if (isNaN(index) || index < 0) {
-        console.warn('[SillyTavern-Highlighter] Invalid character index:', charIndexOrKey);
+    if (typeof index !== 'number' || isNaN(index) || index < 0) {
         return null;
     }
 
     // characters 배열이 아직 로드되지 않았거나 범위 밖인 경우
     if (!characters || !characters[index]) {
-        // 마이그레이션 중에는 경고 없이 null 반환 (나중에 재시도 가능)
         return null;
     }
 
-    const char = characters[index];
-    if (!char.date_added) {
-        console.warn('[SillyTavern-Highlighter] Character has no date_added:', index, char?.name);
-        return null;
-    }
-
-    return String(char.date_added);
+    return characters[index].avatar;
 }
 
 /**
- * 키로 캐릭터 찾기 (date_added 또는 인덱스)
- * @param {string} key - date_added 키 또는 인덱스
+ * 키로 캐릭터 찾기 (avatar 기반, date_added 폴백 지원)
+ * @param {string} key - avatar 키 또는 레거시 date_added 키
  * @returns {object|null} 캐릭터 객체
  */
 function findCharacterByKey(key) {
-    if (!key) return null;
+    if (!key || !characters || characters.length === 0) return null;
 
     const keyStr = String(key);
 
-    // date_added로 찾기
-    if (keyStr.includes('.') || parseFloat(keyStr) > 1000000000000) {
-        return characters.find(c => {
-            // 1. 단순 문자열 비교
-            if (String(c.date_added) === keyStr) return true;
-
-            // 2. 숫자형 느슨한 비교 (소수점 정밀도 차이 또는 .0 접미사 등 호환성)
-            const numA = Number(c.date_added);
-            const numB = Number(keyStr);
-            if (!isNaN(numA) && !isNaN(numB) && Math.abs(numA - numB) < 0.001) {
-                return true;
-            }
-
-            return false;
-        });
+    // 1. avatar로 찾기 (최우선)
+    if (keyStr.endsWith('.png')) {
+        return characters.find(c => c.avatar === keyStr) || null;
     }
 
-    // 인덱스로 찾기 (폴백)
+    // 2. 레거시: date_added로 찾기 (마이그레이션/복구용)
+    if (keyStr.includes('.') || parseFloat(keyStr) > 1000000000000) {
+        return findCharacterByDateAdded(keyStr);
+    }
+
+    // 3. 인덱스로 찾기 (최후 폴백)
     const index = parseInt(keyStr);
     if (!isNaN(index) && index >= 0 && index < characters.length) {
         return characters[index];
@@ -961,11 +954,102 @@ function findCharacterByKey(key) {
     return null;
 }
 
+/**
+ * date_added 값으로 캐릭터 찾기 (레거시 지원/마이그레이션용)
+ * @param {string} dateAddedKey - date_added 타임스탬프 문자열
+ * @returns {object|null} 캐릭터 객체
+ */
+function findCharacterByDateAdded(dateAddedKey) {
+    if (!characters || characters.length === 0) return null;
+
+    const keyStr = String(dateAddedKey);
+
+    return characters.find(c => {
+        if (String(c.date_added) === keyStr) return true;
+
+        // 숫자형 느슨한 비교 (소수점 정밀도 차이)
+        const numA = Number(c.date_added);
+        const numB = Number(keyStr);
+        if (!isNaN(numA) && !isNaN(numB) && Math.abs(numA - numB) < 0.001) {
+            return true;
+        }
+
+        return false;
+    }) || null;
+}
+
+/**
+ * 두 캐릭터 키가 같은 캐릭터를 가리키는지 확인
+ * (avatar와 date_added 형식이 섞여있어도 비교 가능)
+ * @param {string} key1 - 첫 번째 키
+ * @param {string} key2 - 두 번째 키
+ * @returns {boolean} 같은 캐릭터인지 여부
+ */
+function isSameCharacterKey(key1, key2) {
+    if (!key1 || !key2) return false;
+
+    const str1 = String(key1);
+    const str2 = String(key2);
+
+    // 직접 비교
+    if (str1 === str2) return true;
+
+    // 둘 다 캐릭터 객체로 해석 시도
+    const char1 = findCharacterByKey(str1);
+    const char2 = findCharacterByKey(str2);
+
+    if (char1 && char2) {
+        // 같은 캐릭터 객체인지 확인
+        return char1 === char2 || char1.avatar === char2.avatar;
+    }
+
+    return false;
+}
+
+/**
+ * 특정 캐릭터의 채팅 파일에 대한 하이라이트 배열 반환
+ * (avatar 키와 date_added 키 둘 다 확인)
+ * @param {string} charKey - 캐릭터 키 (avatar 또는 date_added)
+ * @param {string} chatFile - 채팅 파일명
+ * @returns {Array} 하이라이트 배열
+ */
+function getHighlightsForChatFile(charKey, chatFile) {
+    if (!settings.highlights || !charKey || !chatFile) return [];
+
+    // 1. 직접 키로 찾기
+    if (settings.highlights[charKey]?.[chatFile]?.highlights) {
+        return settings.highlights[charKey][chatFile].highlights;
+    }
+
+    // 2. 캐릭터 객체로 변환 후 다른 키 형식으로 찾기
+    const char = findCharacterByKey(charKey);
+    if (char) {
+        // avatar로 찾기
+        if (char.avatar && settings.highlights[char.avatar]?.[chatFile]?.highlights) {
+            return settings.highlights[char.avatar][chatFile].highlights;
+        }
+        // date_added로 찾기
+        const dateKey = String(char.date_added);
+        if (settings.highlights[dateKey]?.[chatFile]?.highlights) {
+            return settings.highlights[dateKey][chatFile].highlights;
+        }
+    }
+
+    return [];
+}
+
 // 데이터 마이그레이션
 function migrateSettings(data) {
     try {
         const currentVersion = data.version || null;
         console.log(`[SillyTavern-Highlighter] Running migration from ${currentVersion || 'unknown'} to ${EXTENSION_VERSION}`);
+
+        // ⭐ 안전장치 추가: 캐릭터 데이터가 아직 로드되지 않았으면 마이그레이션 중단
+        // (retryMigration에서 다시 시도할 것이므로 안전함)
+        if (!characters || characters.length === 0) {
+            console.log('[SillyTavern-Highlighter] Characters not loaded yet. Skipping migration.');
+            return data;
+        }
 
         // textOffset 필드 추가 (없으면 0으로)
         for (const charId in data.highlights) {
@@ -981,7 +1065,10 @@ function migrateSettings(data) {
             }
         }
 
-        // ⭐ v1.1.13: 인덱스 기반 → date_added 기반 마이그레이션 (항상 체크)
+        // ⭐ v1.2.0: date_added 기반 → avatar 기반 마이그레이션
+        migrateToAvatarKeys(data);
+
+        // 레거시: 인덱스 기반 → date_added → avatar 변환
         migrateToDateAddedKeys(data);
 
         // 버전 업데이트
@@ -997,11 +1084,139 @@ function migrateSettings(data) {
 }
 
 /**
- * 인덱스 기반 키를 date_added 기반으로 마이그레이션
+ * date_added 키를 avatar 키로 마이그레이션
+ * (SillyTavern 표준 방식으로 전환)
+ */
+function migrateToAvatarKeys(data) {
+    if (!data.highlights || typeof data.highlights !== 'object') return;
+    if (!characters || characters.length === 0) return;
+
+    const keys = Object.keys(data.highlights);
+    // date_added 형식 키만 필터링 (숫자형이고 1000000000000 이상)
+    const dateAddedKeys = keys.filter(key => {
+        const num = parseFloat(key);
+        return !isNaN(num) && num > 1000000000000;
+    });
+
+    if (dateAddedKeys.length === 0) return;
+
+    console.log(`[SillyTavern-Highlighter] Migrating ${dateAddedKeys.length} date_added keys to avatar keys...`);
+
+    let migratedCount = 0;
+
+    for (const oldKey of dateAddedKeys) {
+        const char = findCharacterByDateAdded(oldKey);
+        if (char && char.avatar) {
+            const newKey = char.avatar;
+            if (newKey !== oldKey) {
+                if (!data.highlights[newKey]) {
+                    // 새 키로 이동
+                    data.highlights[newKey] = data.highlights[oldKey];
+                } else {
+                    // 새 키에 이미 데이터가 있으면 병합
+                    const oldData = data.highlights[oldKey];
+                    const newData = data.highlights[newKey];
+                    for (const chatFile in oldData) {
+                        if (!newData[chatFile]) {
+                            newData[chatFile] = oldData[chatFile];
+                        } else {
+                            // 채팅별로 형광펜 병합 (중복 ID 제외)
+                            const existingIds = new Set(newData[chatFile].highlights.map(h => h.id));
+                            oldData[chatFile].highlights.forEach(h => {
+                                if (!existingIds.has(h.id)) {
+                                    newData[chatFile].highlights.push(h);
+                                }
+                            });
+                        }
+                    }
+                }
+                // 항상 old key 삭제
+                delete data.highlights[oldKey];
+                migratedCount++;
+                console.log(`[SillyTavern-Highlighter] Migrated: ${oldKey} → ${newKey} (${char.name})`);
+
+                // characterNames 캐시도 업데이트
+                if (data.characterNames) {
+                    if (data.characterNames[oldKey] && !data.characterNames[newKey]) {
+                        data.characterNames[newKey] = data.characterNames[oldKey];
+                    }
+                    delete data.characterNames[oldKey];
+                }
+            }
+        }
+    }
+
+    // characterMemos도 마이그레이션 (in-place)
+    if (data.characterMemos) {
+        const keysToMigrate = Object.keys(data.characterMemos).filter(key => {
+            const num = parseFloat(key);
+            return !isNaN(num) && num > 1000000000000;
+        });
+        for (const oldKey of keysToMigrate) {
+            const char = findCharacterByDateAdded(oldKey);
+            if (char && char.avatar && !data.characterMemos[char.avatar]) {
+                data.characterMemos[char.avatar] = data.characterMemos[oldKey];
+            }
+            delete data.characterMemos[oldKey];
+        }
+    }
+
+    if (migratedCount > 0) {
+        console.log(`[SillyTavern-Highlighter] Avatar migration: ${migratedCount} keys migrated`);
+    }
+
+    // ⭐ 빈 키 정리 (형광펜이 없는 키 삭제)
+    const allKeys = Object.keys(data.highlights);
+    let cleanedCount = 0;
+    for (const key of allKeys) {
+        const charData = data.highlights[key];
+        if (!charData || typeof charData !== 'object') {
+            delete data.highlights[key];
+            cleanedCount++;
+            continue;
+        }
+
+        // 채팅 파일 확인
+        const chatFiles = Object.keys(charData);
+        if (chatFiles.length === 0) {
+            delete data.highlights[key];
+            cleanedCount++;
+            continue;
+        }
+
+        // 모든 채팅에 형광펜이 있는지 확인
+        let hasHighlights = false;
+        for (const chatFile of chatFiles) {
+            const chatData = charData[chatFile];
+            if (chatData && chatData.highlights && chatData.highlights.length > 0) {
+                hasHighlights = true;
+                break;
+            }
+        }
+
+        if (!hasHighlights) {
+            delete data.highlights[key];
+            cleanedCount++;
+        }
+    }
+
+    if (cleanedCount > 0) {
+        console.log(`[SillyTavern-Highlighter] Cleaned ${cleanedCount} empty keys`);
+    }
+}
+
+/**
+ * 인덱스 기반 키를 date_added/avatar 기반으로 마이그레이션 (레거시)
  * 경고: 이미 배열 순서가 바뀐 경우 완벽한 복구는 불가능
  */
 function migrateToDateAddedKeys(data) {
     if (!data.highlights || typeof data.highlights !== 'object') {
+        return;
+    }
+
+    // ⭐ 추가 안전장치: 캐릭터 데이터 확인
+    if (!characters || characters.length === 0) {
+        console.warn('[SillyTavern-Highlighter] Cannot migrate keys: Characters not loaded.');
         return;
     }
 
@@ -1013,11 +1228,12 @@ function migrateToDateAddedKeys(data) {
     });
 
     if (!hasIndexKeys) {
-        console.log('[SillyTavern-Highlighter] No index-based keys found, migration not needed');
+        // 이미 완료된 경우에도 색상 연동은 체크해야 함
+        linkExistingHighlightsToSlots(data);
         return;
     }
 
-    console.log('[SillyTavern-Highlighter] Migrating character keys from index to date_added...');
+    console.log('[SillyTavern-Highlighter] Migrating character keys from index to avatar...');
 
     const newHighlights = {};
     let migratedCount = 0;
@@ -1031,7 +1247,7 @@ function migrateToDateAddedKeys(data) {
             migratedCount++;
 
             const char = findCharacterByKey(charKey);
-            console.log(`[SillyTavern-Highlighter] Migrated: index ${oldKey} → date_added ${charKey} (${char?.name || 'Unknown'})`);
+            console.log(`[SillyTavern-Highlighter] Migrated: index ${oldKey} → ${charKey} (${char?.name || 'Unknown'})`);
         } else {
             // 변환 실패 시 원본 키 유지 (데이터 보존)
             console.warn(`[SillyTavern-Highlighter] Failed to migrate key: ${oldKey}, keeping original`);
@@ -1098,6 +1314,9 @@ function migrateToDateAddedKeys(data) {
 function linkExistingHighlightsToSlots(data) {
     if (!data.highlights) return;
 
+    // ⭐ 추가 안전장치
+    if (!characters || characters.length === 0) return;
+
     let linkedCount = 0;
     const currentColors = getColorsFromPreset(data); // 현재 프리셋 색상 가져오기
 
@@ -1131,6 +1350,192 @@ function getColorsFromPreset(data) {
         return data.colorPresets[data.currentPresetIndex].colors;
     }
     return data.customColors || []; // 폴백
+}
+
+/**
+ * 캐릭터 이름 변경 시 데이터 키 자동 업데이트
+ * (SillyTavern CHARACTER_RENAMED 이벤트 핸들러)
+ * @param {string} oldAvatar - 기존 avatar 파일명
+ * @param {string} newAvatar - 새로운 avatar 파일명
+ */
+function handleCharacterRenamed(oldAvatar, newAvatar) {
+    if (!oldAvatar || !newAvatar || oldAvatar === newAvatar) return;
+
+    console.log(`[SillyTavern-Highlighter] Character renamed: ${oldAvatar} -> ${newAvatar}`);
+
+    let updated = false;
+
+    // highlights 데이터 이동
+    if (settings.highlights && settings.highlights[oldAvatar]) {
+        settings.highlights[newAvatar] = settings.highlights[oldAvatar];
+        delete settings.highlights[oldAvatar];
+        updated = true;
+    }
+
+    // characterMemos 데이터 이동
+    if (settings.characterMemos && settings.characterMemos[oldAvatar]) {
+        settings.characterMemos[newAvatar] = settings.characterMemos[oldAvatar];
+        delete settings.characterMemos[oldAvatar];
+        updated = true;
+    }
+
+    // characterNames 캐시 업데이트
+    if (settings.characterNames && settings.characterNames[oldAvatar]) {
+        settings.characterNames[newAvatar] = settings.characterNames[oldAvatar];
+        delete settings.characterNames[oldAvatar];
+        updated = true;
+    }
+
+    // chatMemos 키 업데이트 (charId_chatFile 형식)
+    if (settings.chatMemos) {
+        const oldPrefix = `${oldAvatar}_`;
+        const keysToUpdate = Object.keys(settings.chatMemos).filter(k => k.startsWith(oldPrefix));
+        keysToUpdate.forEach(oldKey => {
+            const chatFile = oldKey.substring(oldPrefix.length);
+            const newKey = `${newAvatar}_${chatFile}`;
+            settings.chatMemos[newKey] = settings.chatMemos[oldKey];
+            delete settings.chatMemos[oldKey];
+            updated = true;
+        });
+    }
+
+    if (updated) {
+        saveSettingsDebounced();
+        console.log(`[SillyTavern-Highlighter] Data migrated from ${oldAvatar} to ${newAvatar}`);
+    }
+}
+
+/**
+ * 고아 데이터(잘못된 키를 가진 형광펜 데이터)를 찾아 올바른 캐릭터에게 병합
+ * 복구 우선순위:
+ * 1. 이름이 같고 동일한 이름의 채팅 파일이 있음
+ * 2. 이름이 같음
+ */
+function repairOrphanedData() {
+    if (!characters || characters.length === 0) {
+        toastr.warning('캐릭터 목록이 로드되지 않았습니다.');
+        return;
+    }
+
+    if (!settings.highlights) {
+        toastr.info('복구할 데이터가 없습니다.');
+        return;
+    }
+
+    console.log('[SillyTavern-Highlighter] Starting orphaned data repair...');
+    let repairedCount = 0;
+    const highlightKeys = Object.keys(settings.highlights);
+
+    highlightKeys.forEach(key => {
+        // 유효한 avatar 키인지 확인 (.png로 끝나고 캐릭터가 존재함)
+        if (key.endsWith('.png') && findCharacterByKey(key)) {
+            return; // 이미 올바른 avatar 키
+        }
+
+        // date_added 키 또는 알 수 없는 키 -> 복구 대상
+        let targetChar = null;
+        let matchType = '';
+
+        // 1. date_added로 직접 찾기 시도
+        targetChar = findCharacterByDateAdded(key);
+        if (targetChar) {
+            matchType = 'date_added';
+        } else {
+            // 2. 캐싱된 이름으로 찾기
+            const cachedName = settings.characterNames?.[key];
+            if (cachedName) {
+                // 동일 이름의 캐릭터 찾기
+                const candidates = characters.filter(c => c.name === cachedName);
+
+                if (candidates.length === 1) {
+                    // 유일한 매칭
+                    targetChar = candidates[0];
+                    matchType = 'unique_name';
+                } else if (candidates.length > 1) {
+                    // 복수 캐릭터 -> 채팅 파일명으로 구분 시도
+                    const orphanChatFiles = Object.keys(settings.highlights[key] || {});
+
+                    for (const candidate of candidates) {
+                        // 해당 캐릭터의 채팅 파일명 패턴 확인
+                        // 채팅 파일명은 보통 "캐릭터명 - 날짜.jsonl" 형태
+                        const matchingChat = orphanChatFiles.some(chatFile =>
+                            chatFile.toLowerCase().includes(candidate.name.toLowerCase())
+                        );
+                        if (matchingChat) {
+                            targetChar = candidate;
+                            matchType = 'name_and_chat';
+                            break;
+                        }
+                    }
+
+                    if (!targetChar) {
+                        console.warn(`[SillyTavern-Highlighter] Ambiguous match for ${key}: ${candidates.length} characters named "${cachedName}". Manual repair needed.`);
+                    }
+                }
+            }
+        }
+
+        if (!targetChar) return;
+
+        const canonicalKey = targetChar.avatar;
+        if (!canonicalKey || key === canonicalKey) return;
+
+        console.log(`[SillyTavern-Highlighter] Repairing orphan data: ${key} -> ${canonicalKey} (${targetChar.name}) [${matchType}]`);
+
+        // 타겟 데이터 공간 확보
+        if (!settings.highlights[canonicalKey]) {
+            settings.highlights[canonicalKey] = {};
+        }
+
+        const orphanData = settings.highlights[key];
+
+        // 채팅 파일별로 순회하며 병합
+        Object.keys(orphanData).forEach(chatFile => {
+            const sourceChatData = orphanData[chatFile];
+
+            if (!settings.highlights[canonicalKey][chatFile]) {
+                settings.highlights[canonicalKey][chatFile] = sourceChatData;
+            } else {
+                // 하이라이트 배열 병합
+                if (sourceChatData.highlights && Array.isArray(sourceChatData.highlights)) {
+                    if (!settings.highlights[canonicalKey][chatFile].highlights) {
+                        settings.highlights[canonicalKey][chatFile].highlights = [];
+                    }
+                    settings.highlights[canonicalKey][chatFile].highlights.push(...sourceChatData.highlights);
+                }
+            }
+        });
+
+        // 고아 데이터 삭제
+        delete settings.highlights[key];
+        repairedCount++;
+
+        // 메모 데이터도 복구
+        if (settings.characterMemos && settings.characterMemos[key]) {
+            if (!settings.characterMemos[canonicalKey]) {
+                settings.characterMemos[canonicalKey] = settings.characterMemos[key];
+            }
+            delete settings.characterMemos[key];
+        }
+
+        // characterNames 캐시 정리
+        if (settings.characterNames && settings.characterNames[key]) {
+            settings.characterNames[canonicalKey] = settings.characterNames[key];
+            delete settings.characterNames[key];
+        }
+    });
+
+    if (repairedCount > 0) {
+        saveSettingsDebounced();
+        toastr.success(`${repairedCount}명의 캐릭터 데이터를 복구했습니다!`);
+        console.log(`[SillyTavern-Highlighter] Repaired ${repairedCount} orphaned character entries.`);
+
+        // UI 갱신
+        renderView();
+        restoreHighlightsInChat();
+    } else {
+        toastr.info('복구할 필요가 있는 데이터가 발견되지 않았습니다.');
+    }
 }
 
 function createHighlighterUI() {
@@ -3123,18 +3528,14 @@ async function jumpToMessage(mesId, hlId) {
     const currentCharKey = getCurrentCharacterKey();
     const currentChatFile = getCurrentChatFile();
 
-    // 타입 변환 (문자열로 통일)
-    const targetCharKeyStr = targetCharKey !== null && targetCharKey !== undefined ? String(targetCharKey) : null;
-    const currentCharKeyStr = currentCharKey !== null && currentCharKey !== undefined ? String(currentCharKey) : null;
-
     // 같은 캐릭터이고 같은 채팅인 경우 바로 점프 (불필요한 이동 방지)
-    if (targetCharKeyStr === currentCharKeyStr && targetChatFile === currentChatFile) {
+    if (isSameCharacterKey(targetCharKey, currentCharKey) && targetChatFile === currentChatFile) {
         jumpToMessageInternal(mesId, hlId);
         return;
     }
 
     // 캐릭터가 다른 경우 캐릭터 변경
-    if (targetCharKeyStr !== currentCharKeyStr && targetCharKey !== null) {
+    if (!isSameCharacterKey(targetCharKey, currentCharKey) && targetCharKey !== null) {
         const targetChar = findCharacterByKey(targetCharKey);
         const charName = getCharacterNameByKey(targetCharKey);
 
@@ -3144,8 +3545,8 @@ async function jumpToMessage(mesId, hlId) {
             return;
         }
 
-        // date_added 키로 캐릭터를 찾았으니, 현재 배열에서의 인덱스를 찾음
-        const targetCharIndex = characters.findIndex(c => String(c.date_added) === targetCharKeyStr);
+        // 캐릭터 인덱스 찾기 (avatar로 검색)
+        const targetCharIndex = characters.indexOf(targetChar);
 
         if (targetCharIndex === -1) {
             toastr.error('캐릭터를 찾을 수 없습니다');
@@ -3178,9 +3579,9 @@ async function jumpToMessage(mesId, hlId) {
                 $charButton.trigger('click');
                 await new Promise(resolve => setTimeout(resolve, 600));
 
-                // 캐릭터 변경 확인 (date_added 키로 비교)
+                // 캐릭터 변경 확인
                 const newCharKey = getCurrentCharacterKey();
-                if (newCharKey === targetCharKeyStr) {
+                if (isSameCharacterKey(newCharKey, targetCharKey)) {
                     success = true;
                     console.log('[SillyTavern-Highlighter] Character changed successfully via button click');
                 }
@@ -3195,7 +3596,7 @@ async function jumpToMessage(mesId, hlId) {
                         await new Promise(resolve => setTimeout(resolve, 600));
 
                         const newCharKey = getCurrentCharacterKey();
-                        if (newCharKey === targetCharKeyStr) {
+                        if (isSameCharacterKey(newCharKey, targetCharKey)) {
                             success = true;
                             console.log('[SillyTavern-Highlighter] Character changed successfully via selectCharacterById');
                         }
@@ -3237,7 +3638,7 @@ async function jumpToMessage(mesId, hlId) {
                 await new Promise(resolve => setTimeout(resolve, 600));
 
                 const newCharKey = getCurrentCharacterKey();
-                if (newCharKey === targetCharKeyStr) {
+                if (isSameCharacterKey(newCharKey, targetCharKey)) {
                     success = true;
                     console.log('[SillyTavern-Highlighter] Character changed successfully via /char command');
                 }
@@ -3356,25 +3757,11 @@ async function jumpToMessageInternal(mesId, hlId) {
             if (result) {
                 const hlText = result.highlight.text;
 
-                // ⭐ 이미지/HTML 제거 후 텍스트 추출 (createHighlight와 동일한 방식)
-                const mesHtml = $mes.find('.mes_text').html();
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = mesHtml;
+                // ⭐ 메시지 텍스트 추출 (단순화)
+                const mesText = $mes.find('.mes_text').text() || '';
 
-                // 이미지, style, script 등 불필요한 요소 제거
-                const unwantedSelectors = [
-                    'img', 'style', 'script', 'svg', 'canvas', 'video', 'audio', 'iframe',
-                    '.custom-imageWrapper', '.custom-characterImage',
-                    '[class*="image"]', '[class*="media"]'
-                ];
-                unwantedSelectors.forEach(selector => {
-                    tempDiv.querySelectorAll(selector).forEach(el => el.remove());
-                });
-
-                const mesText = tempDiv.textContent || tempDiv.innerText || '';
-
-                // 줄바꿈 정규화 후 비교
-                const normalizedHlText = hlText.replace(/\n+/g, ' ').trim();
+                // 정규화: 모든 공백(줄바꿈 포함)을 단일 공백으로
+                const normalizedHlText = hlText.replace(/\s+/g, ' ').trim();
                 const normalizedMesText = mesText.replace(/\s+/g, ' ').trim();
 
                 // 메시지에 하이라이트 텍스트가 존재하는지 확인
@@ -3434,25 +3821,11 @@ async function jumpToMessageInternal(mesId, hlId) {
                         if (result) {
                             const hlText = result.highlight.text;
 
-                            // ⭐ 이미지/HTML 제거 후 텍스트 추출 (createHighlight와 동일한 방식)
-                            const mesHtml = $retryMes.find('.mes_text').html();
-                            const tempDiv = document.createElement('div');
-                            tempDiv.innerHTML = mesHtml;
+                            // ⭐ 메시지 텍스트 추출 (단순화)
+                            const mesText = $retryMes.find('.mes_text').text() || '';
 
-                            // 이미지, style, script 등 불필요한 요소 제거
-                            const unwantedSelectors = [
-                                'img', 'style', 'script', 'svg', 'canvas', 'video', 'audio', 'iframe',
-                                '.custom-imageWrapper', '.custom-characterImage',
-                                '[class*="image"]', '[class*="media"]'
-                            ];
-                            unwantedSelectors.forEach(selector => {
-                                tempDiv.querySelectorAll(selector).forEach(el => el.remove());
-                            });
-
-                            const mesText = tempDiv.textContent || tempDiv.innerText || '';
-
-                            // 줄바꿈 정규화 후 비교
-                            const normalizedHlText = hlText.replace(/\n+/g, ' ').trim();
+                            // 정규화: 모든 공백(줄바꿈 포함)을 단일 공백으로
+                            const normalizedHlText = hlText.replace(/\s+/g, ' ').trim();
                             const normalizedMesText = mesText.replace(/\s+/g, ' ').trim();
 
                             // 메시지에 하이라이트 텍스트가 존재하는지 확인
@@ -4014,60 +4387,48 @@ function restoreHighlightsInChat() {
 
     if (!chatFile || !charKey) return;
 
-    // ⭐ 현재 채팅 파일의 형광펜만 복원 (자동 복사 기능 제거됨)
-    let currentChatHighlights = settings.highlights[charKey]?.[chatFile]?.highlights || [];
+    // ⭐ 현재 채팅 파일의 형광펜만 복원
+    // avatar 키와 date_added 키 둘 다 확인 (마이그레이션 전 데이터 호환)
+    let currentChatHighlights = getHighlightsForChatFile(charKey, chatFile);
+
+    // ⭐ 디버그 로깅
+    console.log(`[SillyTavern-Highlighter] restoreHighlightsInChat: charKey=${charKey}, chatFile=${chatFile}, highlights count=${currentChatHighlights.length}`);
 
     // ⭐ 화면에 하이라이트 표시
     const allHighlights = [...currentChatHighlights];
 
     allHighlights.forEach(hl => {
         const $mes = $(`.mes[mesid="${hl.mesId}"]`);
-        if ($mes.length) {
-            // 스와이프 ID 확인 - 현재 표시 중인 스와이프와 일치하는 경우만 하이라이트
-            const currentSwipeId = getCurrentSwipeId(hl.mesId);
-            const hlSwipeId = hl.swipeId !== undefined ? hl.swipeId : 0; // 하위 호환성
+        if (!$mes.length) {
+            console.log(`[SillyTavern-Highlighter] mesId ${hl.mesId} not found in DOM for hl ${hl.id}`);
+            return;
+        }
 
-            if (currentSwipeId !== hlSwipeId) {
-                return; // 다른 스와이프는 스킵
-            }
+        // 스와이프 ID 확인 - 현재 표시 중인 스와이프와 일치하는 경우만 하이라이트
+        const currentSwipeId = getCurrentSwipeId(hl.mesId);
+        const hlSwipeId = hl.swipeId !== undefined ? hl.swipeId : 0; // 하위 호환성
 
-            const $text = $mes.find('.mes_text');
+        if (currentSwipeId !== hlSwipeId) {
+            console.log(`[SillyTavern-Highlighter] swipeId mismatch for hl ${hl.id}: current=${currentSwipeId}, saved=${hlSwipeId}`);
+            return; // 다른 스와이프는 스킵
+        }
 
-            const content = $text.html();
-            if (!content) return;
+        const $text = $mes.find('.mes_text');
 
-            // ⭐ 성능 최적화: 이미 하이라이트가 적용된 경우 스킵
-            if ($text.find(`.text-highlight[data-hl-id="${hl.id}"]`).length > 0) {
-                return;
-            }
+        const content = $text.html();
+        if (!content) return;
 
-            // ⭐ 이미지/HTML 제거 후 텍스트 추출 (createHighlight와 동일한 방식)
-            const mesHtml = $text.html();
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = mesHtml;
+        // ⭐ 성능 최적화: 이미 하이라이트가 적용된 경우 스킵
+        if ($text.find(`.text-highlight[data-hl-id="${hl.id}"]`).length > 0) {
+            return;
+        }
 
-            // 이미지, style, script 등 불필요한 요소 제거
-            const unwantedSelectors = [
-                'img', 'style', 'script', 'svg', 'canvas', 'video', 'audio', 'iframe',
-                '.custom-imageWrapper', '.custom-characterImage',
-                '[class*="image"]', '[class*="media"]'
-            ];
-            unwantedSelectors.forEach(selector => {
-                tempDiv.querySelectorAll(selector).forEach(el => el.remove());
-            });
-
-            const textContent = tempDiv.textContent || tempDiv.innerText || '';
-            const normalizedHlText = hl.text.replace(/\n+/g, ' ').trim();
-            const normalizedMesText = textContent.replace(/\s+/g, ' ').trim();
-
-            // 정규화된 텍스트로 매칭 확인
-            if (normalizedMesText.includes(normalizedHlText)) {
-                try {
-                    highlightTextInElement($text[0], hl);
-                } catch (e) {
-                    console.warn('[SillyTavern-Highlighter] Failed to restore highlight:', e);
-                }
-            }
+        // ⭐ 복잡한 검증 없이 바로 적용 시도
+        // (highlightTextInElement가 실제 텍스트 매칭을 수행)
+        try {
+            highlightTextInElement($text[0], hl);
+        } catch (e) {
+            // 실패해도 무시 (텍스트가 변경되었을 수 있음)
         }
     });
 
@@ -4818,6 +5179,11 @@ function showHeaderMoreMenu(e) {
                 <i class="fa-solid fa-upload"></i>
                 <span>불러오기</span>
             </button>
+            <div style="border-top: 1px solid rgba(0,0,0,0.1); margin: 4px 0;"></div>
+            <button class="hl-more-menu-item" data-action="repair" style="color: #e65100;">
+                <i class="fa-solid fa-Wrench"></i>
+                <span>데이터 복구</span>
+            </button>
         </div>
     `;
 
@@ -4874,6 +5240,13 @@ function showHeaderMoreMenu(e) {
     $('[data-action="import"]').on('click', function () {
         $('#hl-header-more-menu').remove();
         $('#hl-import-file-input').click();
+    });
+
+    $('[data-action="repair"]').on('click', function () {
+        $('#hl-header-more-menu').remove();
+        if (confirm('삭제된 캐릭터(잘못된 ID) 데이터를 복구하시겠습니까?\n\n이 작업은 주인 없는 형광펜 데이터를 찾아 올바른 캐릭터에게 병합합니다.')) {
+            repairOrphanedData();
+        }
     });
 
     // 외부 클릭 시 닫기
@@ -5221,6 +5594,13 @@ function showUpdateNotification(latestVersion) {
             }
         });
 
+        // ⭐ 데이터 복구 버튼
+        $('#hl-repair-orphaned-data-btn').off('click').on('click', function () {
+            if (confirm('삭제된 캐릭터(잘못된 ID를 가진 데이터)를 복구하시겠습니까?\n\n이 작업은 주인 없는 형광펜 데이터를 찾아 올바른 캐릭터에게 병합합니다.')) {
+                repairOrphanedData();
+            }
+        });
+
         // 업데이트 확인 버튼
         $('#hl-check-update-btn').on('click', async function () {
             const $btn = $(this);
@@ -5304,20 +5684,35 @@ function showUpdateNotification(latestVersion) {
             migrationRetried = true;
             console.log('[SillyTavern-Highlighter] Retrying migration after characters loaded');
 
-            // 인덱스 키가 남아있는지 확인
+            // 인덱스 키 또는 date_added 키가 남아있는지 확인
             const keys = Object.keys(settings.highlights || {});
             const hasIndexKeys = keys.some(key => /^\d+$/.test(key) && parseInt(key) < 1000);
+            const hasDateAddedKeys = keys.some(key => {
+                const num = parseFloat(key);
+                return !isNaN(num) && num > 1000000000000;
+            });
 
-            if (hasIndexKeys) {
+            if (hasIndexKeys || hasDateAddedKeys) {
+                console.log(`[SillyTavern-Highlighter] Found keys to migrate: index=${hasIndexKeys}, date_added=${hasDateAddedKeys}`);
+                console.log(`[SillyTavern-Highlighter] Keys BEFORE migration:`, Object.keys(settings.highlights || {}));
+
                 settings = migrateSettings(settings);
                 extension_settings[extensionName] = settings;
+
+                console.log(`[SillyTavern-Highlighter] Keys AFTER migration:`, Object.keys(settings.highlights || {}));
+
                 // 즉시 저장
                 if (typeof saveSettingsDebounced.flush === 'function') {
                     saveSettingsDebounced.flush();
                 } else {
                     saveSettingsDebounced();
                 }
-                console.log('[SillyTavern-Highlighter] Migration retry completed');
+                console.log('[SillyTavern-Highlighter] Migration retry completed, save called');
+
+                // 화면 갱신
+                setTimeout(() => {
+                    restoreHighlightsInChat();
+                }, 500);
             }
         }
     };
@@ -5336,6 +5731,7 @@ function showUpdateNotification(latestVersion) {
     eventSource.on(event_types.MESSAGE_UPDATED, restoreHighlightsInChat);
     eventSource.on(event_types.MESSAGE_SWIPED, restoreHighlightsInChat);
     eventSource.on(event_types.CHARACTER_EDITED, onCharacterEdited);
+    eventSource.on(event_types.CHARACTER_RENAMED, handleCharacterRenamed);
 
     // 과거 메시지 로딩 감지를 위한 MutationObserver 설정
     setupChatObserver();

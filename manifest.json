@@ -6,8 +6,8 @@
     "js": "index.js",
     "css": "style.css",
     "author": "saving3899",
-    "version": "1.2.1",
-    "updateMessage": "캐릭터 이름 표시 오류 수정, 백업 기능 분리(컨텐츠/설정). *업데이트 전 데이터 백업을 권장*",
+    "version": "1.3.0",
+    "updateMessage": "캐릭터 식별 방식 개선: avatar 키 사용 (SillyTavern 표준). 이름 변경 자동 대응. 데이터 복구 도구 추가 (독서노트 모달의 더보기 메뉴에서 확인 가능). *업데이트 전 백업 필수*",
     "homePage": "https://github.com/saving3899/SillyTavern-Highlighter",
     "description": "이북앱 스타일 형광펜 모드 / 깡갤 대피소 갤러리에서만 배포됨"
 }
