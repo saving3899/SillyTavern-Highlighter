@@ -784,6 +784,9 @@ let previousChatLength = null; // 채팅 메시지 개수 (같은 채팅인지 �
 let previousChatChangeTime = null; // 채팅 변경 시간 (제목 변경과 채팅 이동 구분용)
 let previousChatMessages = null; // 첫/마지막 메시지 저장 (제목 변경 검증용)
 
+// 채팅 이름 변경 직접 감지용 (renameChatButton 클릭 가로채기)
+let pendingRename = null; // { charId, oldChatFile, timestamp }
+
 // ====================================
 // 데이터 안정성 및 마이그레이션
 // ====================================
@@ -1406,7 +1409,7 @@ function handleCharacterRenamed(oldAvatar, newAvatar) {
 }
 
 /**
- * 고아 데이터(잘못된 키를 가진 형광펜 데이터)를 찾아 올바른 캐릭터에게 병합
+ * 연결이 끊어진 데이터(잘못된 키를 가진 형광펜 데이터)를 찾아 올바른 캐릭터에게 병합
  * 복구 우선순위:
  * 1. 이름이 같고 동일한 이름의 채팅 파일이 있음
  * 2. 이름이 같음
@@ -1422,7 +1425,7 @@ function repairOrphanedData() {
         return;
     }
 
-    console.log('[SillyTavern-Highlighter] Starting orphaned data repair...');
+    console.log('[SillyTavern-Highlighter] Starting unlinked data repair...');
     let repairedCount = 0;
     const highlightKeys = Object.keys(settings.highlights);
 
@@ -1453,12 +1456,12 @@ function repairOrphanedData() {
                     matchType = 'unique_name';
                 } else if (candidates.length > 1) {
                     // 복수 캐릭터 -> 채팅 파일명으로 구분 시도
-                    const orphanChatFiles = Object.keys(settings.highlights[key] || {});
+                    const unlinkedChatFiles = Object.keys(settings.highlights[key] || {});
 
                     for (const candidate of candidates) {
                         // 해당 캐릭터의 채팅 파일명 패턴 확인
                         // 채팅 파일명은 보통 "캐릭터명 - 날짜.jsonl" 형태
-                        const matchingChat = orphanChatFiles.some(chatFile =>
+                        const matchingChat = unlinkedChatFiles.some(chatFile =>
                             chatFile.toLowerCase().includes(candidate.name.toLowerCase())
                         );
                         if (matchingChat) {
@@ -1480,18 +1483,18 @@ function repairOrphanedData() {
         const canonicalKey = targetChar.avatar;
         if (!canonicalKey || key === canonicalKey) return;
 
-        console.log(`[SillyTavern-Highlighter] Repairing orphan data: ${key} -> ${canonicalKey} (${targetChar.name}) [${matchType}]`);
+        console.log(`[SillyTavern-Highlighter] Repairing unlinked data: ${key} -> ${canonicalKey} (${targetChar.name}) [${matchType}]`);
 
         // 타겟 데이터 공간 확보
         if (!settings.highlights[canonicalKey]) {
             settings.highlights[canonicalKey] = {};
         }
 
-        const orphanData = settings.highlights[key];
+        const unlinkedData = settings.highlights[key];
 
         // 채팅 파일별로 순회하며 병합
-        Object.keys(orphanData).forEach(chatFile => {
-            const sourceChatData = orphanData[chatFile];
+        Object.keys(unlinkedData).forEach(chatFile => {
+            const sourceChatData = unlinkedData[chatFile];
 
             if (!settings.highlights[canonicalKey][chatFile]) {
                 settings.highlights[canonicalKey][chatFile] = sourceChatData;
@@ -1506,7 +1509,7 @@ function repairOrphanedData() {
             }
         });
 
-        // 고아 데이터 삭제
+        // 연결이 끊어진 데이터 삭제
         delete settings.highlights[key];
         repairedCount++;
 
@@ -1528,13 +1531,158 @@ function repairOrphanedData() {
     if (repairedCount > 0) {
         saveSettingsDebounced();
         toastr.success(`${repairedCount}명의 캐릭터 데이터를 복구했습니다!`);
-        console.log(`[SillyTavern-Highlighter] Repaired ${repairedCount} orphaned character entries.`);
+        console.log(`[SillyTavern-Highlighter] Repaired ${repairedCount} unlinked character entries.`);
 
         // UI 갱신
         renderView();
         restoreHighlightsInChat();
     } else {
         toastr.info('복구할 필요가 있는 데이터가 발견되지 않았습니다.');
+    }
+}
+
+/**
+ * 채팅 파일명이 변경되어 연결이 끊어진 형광펜 데이터를 복구
+ * 실제 채팅 파일 목록과 저장된 형광펜 데이터를 비교하여 매칭
+ */
+async function repairUnmatchedChatData() {
+    if (!characters || characters.length === 0) {
+        toastr.warning('캐릭터 목록이 로드되지 않았습니다.');
+        return;
+    }
+
+    if (!settings.highlights) {
+        toastr.info('복구할 데이터가 없습니다.');
+        return;
+    }
+
+    console.log('[SillyTavern-Highlighter] Starting unmatched chat data repair...');
+    let repairedCount = 0;
+    const context = getContext();
+
+    // 각 캐릭터별로 검사
+    for (const charKey in settings.highlights) {
+        const char = findCharacterByKey(charKey);
+        if (!char) continue;
+
+        const charIndex = characters.indexOf(char);
+        if (charIndex === -1) continue;
+
+        // 해당 캐릭터의 실제 채팅 목록 가져오기
+        let actualChats = [];
+        try {
+            const response = await fetch('/api/characters/chats', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ avatar_url: char.avatar })
+            });
+            if (response.ok) {
+                const chats = await response.json();
+                actualChats = chats.map(c => c.file_name.replace('.jsonl', ''));
+            }
+        } catch (error) {
+            console.warn(`[SillyTavern-Highlighter] Failed to fetch chats for ${char.name}:`, error);
+            continue;
+        }
+
+        const savedChatKeys = Object.keys(settings.highlights[charKey] || {});
+
+        // 저장된 채팅 키 중 실제 채팅 목록에 없는 것 찾기
+        for (const savedChatFile of savedChatKeys) {
+            if (actualChats.includes(savedChatFile)) continue; // 이미 매칭됨
+
+            // 유사한 채팅 파일 찾기 (캐릭터 이름 포함 + 날짜 유사)
+            const savedDate = extractDateFromChatName(savedChatFile);
+            let bestMatch = null;
+            let bestScore = 0;
+
+            for (const actualChat of actualChats) {
+                // 이미 형광펜 데이터가 있는 채팅은 건너뛰기
+                if (settings.highlights[charKey][actualChat]) continue;
+
+                const actualDate = extractDateFromChatName(actualChat);
+                if (!savedDate || !actualDate) continue;
+
+                // 날짜 유사도 계산 (시간 차이)
+                const timeDiff = Math.abs(savedDate.getTime() - actualDate.getTime());
+                const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+                // 24시간 이내의 차이만 허용
+                if (hoursDiff < 24) {
+                    const score = 1 / (hoursDiff + 1); // 더 가까울수록 높은 점수
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMatch = actualChat;
+                    }
+                }
+            }
+
+            if (bestMatch) {
+                console.log(`[SillyTavern-Highlighter] Matching chat: "${savedChatFile}" -> "${bestMatch}" (${char.name})`);
+
+                // 데이터 이동
+                settings.highlights[charKey][bestMatch] = settings.highlights[charKey][savedChatFile];
+                delete settings.highlights[charKey][savedChatFile];
+
+                // 채팅 메모도 이동
+                const oldMemoKey = `${charKey}_${savedChatFile}`;
+                const newMemoKey = `${charKey}_${bestMatch}`;
+                if (settings.chatMemos?.[oldMemoKey]) {
+                    settings.chatMemos[newMemoKey] = settings.chatMemos[oldMemoKey];
+                    delete settings.chatMemos[oldMemoKey];
+                }
+
+                repairedCount++;
+            }
+        }
+    }
+
+    if (repairedCount > 0) {
+        saveSettingsDebounced();
+        toastr.success(`${repairedCount}개의 채팅 데이터를 복구했습니다!`);
+        console.log(`[SillyTavern-Highlighter] Repaired ${repairedCount} unmatched chat entries.`);
+
+        // UI 갱신
+        renderView();
+        restoreHighlightsInChat();
+    } else {
+        toastr.info('복구할 필요가 있는 채팅 데이터가 발견되지 않았습니다.');
+    }
+}
+
+/**
+ * 채팅 파일명에서 날짜 추출 (예: "캐릭터명 - December 25, 2024 7_30 PM")
+ */
+function extractDateFromChatName(chatName) {
+    try {
+        // 패턴 1: "캐릭터명 - Month DD, YYYY H_MM AM/PM"
+        const datePattern1 = /(\w+ \d+, \d{4} \d+[_:]\d+ [AP]M)/i;
+        const match1 = chatName.match(datePattern1);
+        if (match1) {
+            const dateStr = match1[1].replace(/_/g, ':');
+            const parsed = new Date(dateStr);
+            if (!isNaN(parsed.getTime())) return parsed;
+        }
+
+        // 패턴 2: ISO 형식 또는 다른 날짜 형식
+        const datePattern2 = /(\d{4}[-\/]\d{2}[-\/]\d{2})/;
+        const match2 = chatName.match(datePattern2);
+        if (match2) {
+            const parsed = new Date(match2[1]);
+            if (!isNaN(parsed.getTime())) return parsed;
+        }
+
+        // 패턴 3: 타임스탬프
+        const timestampPattern = /(\d{13})/;
+        const match3 = chatName.match(timestampPattern);
+        if (match3) {
+            const parsed = new Date(parseInt(match3[1]));
+            if (!isNaN(parsed.getTime())) return parsed;
+        }
+
+        return null;
+    } catch {
+        return null;
     }
 }
 
@@ -4684,6 +4832,58 @@ function highlightTextInElement(element, hl) {
     return true; // 성공
 }
 
+// ⭐ 이름 변경 후 패널 업데이트 헬퍼
+function updatePanelAfterRename(currentCharId, currentChatFile) {
+    const $panel = $('#highlighter-panel');
+    if ($panel.length > 0 && $panel.hasClass('visible')) {
+        const $content = $('#highlighter-content');
+        if (currentView === VIEW_LEVELS.CHARACTER_LIST) {
+            renderCharacterList($content);
+        } else if (currentView === VIEW_LEVELS.CHAT_LIST) {
+            renderChatList($content, currentCharId);
+        } else if (currentView === VIEW_LEVELS.HIGHLIGHT_LIST) {
+            updateBreadcrumb();
+            renderHighlightList($content, currentCharId, currentChatFile);
+        }
+    }
+}
+
+// ⭐ 이전 채팅 메시지 업데이트 헬퍼
+function updatePreviousChatMessages() {
+    if (chat && chat.length >= 1) {
+        previousChatMessages = {
+            first3: chat.slice(0, 3).map(m => (m.mes || '').substring(0, 100)),
+            last3: chat.slice(-3).map(m => (m.mes || '').substring(0, 100))
+        };
+    } else {
+        previousChatMessages = null;
+    }
+}
+
+// ⭐ 채팅 이름 변경 버튼 클릭 가로채기 설정
+function setupRenameChatInterceptor() {
+    // 이벤트 캡처 단계에서 renameChatButton 클릭 감지
+    document.addEventListener('click', function (event) {
+        const target = event.target.closest('.renameChatButton');
+        if (target) {
+            // 클릭 시점의 채팅 정보 저장
+            const currentCharKey = getCharacterKey(this_chid);
+            const currentChatFile = getCurrentChatFile();
+
+            if (currentCharKey && currentChatFile) {
+                pendingRename = {
+                    charKey: currentCharKey,
+                    oldChatFile: currentChatFile,
+                    timestamp: Date.now()
+                };
+                console.log(`[SillyTavern-Highlighter] Rename button clicked, saving state: charKey=${currentCharKey}, chatFile="${currentChatFile}"`);
+            }
+        }
+    }, true); // capture phase
+
+    console.log('[SillyTavern-Highlighter] Rename chat interceptor initialized');
+}
+
 function onCharacterChange() {
     // 형광펜 모드가 활성화되어 있으면 비활성화 후 대기
     if (isHighlightMode) {
@@ -4699,14 +4899,7 @@ function onCharacterChange() {
         previousChatChangeTime = Date.now();
 
         // 현재 채팅의 첫/마지막 메시지 저장
-        if (chat && chat.length >= 1) { // ⭐ 3 → 1
-            previousChatMessages = {
-                first3: chat.slice(0, 3).map(m => (m.mes || '').substring(0, 100)),
-                last3: chat.slice(-3).map(m => (m.mes || '').substring(0, 100))
-            };
-        } else {
-            previousChatMessages = null;
-        }
+        updatePreviousChatMessages();
 
         restoreHighlightsInChat();
 
@@ -4715,6 +4908,7 @@ function onCharacterChange() {
         }
     }, 500);
 }
+
 
 function onChatChange() {
     // 형광펜 모드가 활성화되어 있으면 비활성화 후 대기
@@ -4725,16 +4919,71 @@ function onChatChange() {
     // DOM 업데이트 대기 후 하이라이트 복원 및 형광펜 모드 재활성화
     setTimeout(() => {
         // 채팅 제목 변경 감지 및 데이터 동기화
-        const currentCharId = this_chid;
+        const currentCharKey = getCharacterKey(this_chid);
         const currentChatFile = getCurrentChatFile();
         const currentChatLength = chat ? chat.length : 0;
         const currentTime = Date.now();
 
-        // ⭐⭐ 더 엄격한 채팅 제목 변경 감지
+        // ⭐⭐ 1. 직접 감지: pendingRename이 있으면 우선 처리 (renameChatButton 클릭으로 저장됨)
+        if (pendingRename && pendingRename.charKey === currentCharKey && currentChatFile) {
+            const { oldChatFile, timestamp } = pendingRename;
+            const timeDiff = currentTime - timestamp;
+
+            // 5초 이내의 이름 변경만 유효
+            if (timeDiff < 5000 && oldChatFile !== currentChatFile) {
+                console.log(`[SillyTavern-Highlighter] Direct rename detected: "${oldChatFile}" -> "${currentChatFile}"`);
+
+                // 형광펜 데이터 동기화
+                if (settings.highlights[currentCharKey]?.[oldChatFile] && !settings.highlights[currentCharKey][currentChatFile]) {
+                    settings.highlights[currentCharKey][currentChatFile] = settings.highlights[currentCharKey][oldChatFile];
+                    delete settings.highlights[currentCharKey][oldChatFile];
+                    console.log(`[SillyTavern-Highlighter] Highlight data synced: "${oldChatFile}" -> "${currentChatFile}"`);
+
+                    // 채팅 메모도 함께 이동
+                    const oldMemoKey = `${currentCharKey}_${oldChatFile}`;
+                    const newMemoKey = `${currentCharKey}_${currentChatFile}`;
+                    if (settings.chatMemos?.[oldMemoKey]) {
+                        if (!settings.chatMemos) settings.chatMemos = {};
+                        settings.chatMemos[newMemoKey] = settings.chatMemos[oldMemoKey];
+                        delete settings.chatMemos[oldMemoKey];
+                        console.log(`[SillyTavern-Highlighter] Chat memo synced: "${oldMemoKey}" -> "${newMemoKey}"`);
+                    }
+
+                    saveSettingsDebounced();
+                    toastr.success('형광펜이 변경된 채팅 제목과 동기화되었습니다');
+
+                    // selectedChat 업데이트
+                    if (selectedChat === oldChatFile) {
+                        selectedChat = currentChatFile;
+                    }
+
+                    // 패널 업데이트
+                    updatePanelAfterRename(currentCharKey, currentChatFile);
+                }
+
+                // pendingRename 초기화
+                pendingRename = null;
+
+                // 상태 업데이트 후 하이라이트 복원
+                previousCharId = this_chid;
+                previousChatFile = currentChatFile;
+                previousChatLength = currentChatLength;
+                previousChatChangeTime = currentTime;
+                updatePreviousChatMessages();
+                restoreHighlightsInChat();
+                if (isHighlightMode) enableHighlightMode();
+                return; // 직접 감지로 처리 완료
+            }
+
+            // 타임아웃 또는 파일명 동일 -> pendingRename 초기화
+            pendingRename = null;
+        }
+
+        // ⭐⭐ 2. 휴리스틱 감지 (폴백): 메시지 개수와 내용 비교
         // 1. 기본 조건: 같은 캐릭터, 같은 메시지 개수, 다른 파일 이름
         const basicCondition =
             previousCharId !== null &&
-            currentCharId === previousCharId &&
+            this_chid === previousCharId &&
             previousChatFile !== null &&
             currentChatFile !== null &&
             previousChatFile !== currentChatFile &&
@@ -4745,6 +4994,7 @@ function onChatChange() {
         let isChatRenamed = false;
 
         if (basicCondition) {
+
             // 2. 메시지 내용 비교: 첫 3개와 마지막 3개 메시지가 동일한가?
             let messagesMatch = false;
 
@@ -4777,26 +5027,26 @@ function onChatChange() {
             }
         }
 
-        if (isChatRenamed) {
+        if (isChatRenamed && currentCharKey) {
             // ⭐ checkChatFileChanges에서 이미 처리했을 수 있으니 확인
-            const alreadyMoved = !settings.highlights[currentCharId]?.[previousChatFile] &&
-                settings.highlights[currentCharId]?.[currentChatFile];
+            const alreadyMoved = !settings.highlights[currentCharKey]?.[previousChatFile] &&
+                settings.highlights[currentCharKey]?.[currentChatFile];
 
             // 실제 채팅 제목 변경 - 데이터 이동
-            if (settings.highlights[currentCharId]?.[previousChatFile]) {
+            if (settings.highlights[currentCharKey]?.[previousChatFile]) {
                 // 새 파일 이름에 데이터가 없는 경우에만 이동
-                if (!settings.highlights[currentCharId][currentChatFile]) {
+                if (!settings.highlights[currentCharKey][currentChatFile]) {
                     console.log(`[SillyTavern-Highlighter] Chat title changed (onChatChange): "${previousChatFile}" -> "${currentChatFile}"`);
 
                     // 형광펜 데이터를 새 키로 이동
-                    settings.highlights[currentCharId][currentChatFile] = settings.highlights[currentCharId][previousChatFile];
+                    settings.highlights[currentCharKey][currentChatFile] = settings.highlights[currentCharKey][previousChatFile];
 
                     // 이전 키 삭제
-                    delete settings.highlights[currentCharId][previousChatFile];
+                    delete settings.highlights[currentCharKey][previousChatFile];
 
                     // ⭐ 채팅 메모도 함께 이동
-                    const oldMemoKey = `${currentCharId}_${previousChatFile}`;
-                    const newMemoKey = `${currentCharId}_${currentChatFile}`;
+                    const oldMemoKey = `${currentCharKey}_${previousChatFile}`;
+                    const newMemoKey = `${currentCharKey}_${currentChatFile}`;
                     if (settings.chatMemos?.[oldMemoKey]) {
                         if (!settings.chatMemos) settings.chatMemos = {};
                         settings.chatMemos[newMemoKey] = settings.chatMemos[oldMemoKey];
@@ -4830,31 +5080,24 @@ function onChatChange() {
                     renderCharacterList($content);
                 } else if (currentView === VIEW_LEVELS.CHAT_LIST) {
                     // 채팅 리스트 뷰 - 현재 캐릭터의 채팅 리스트만
-                    renderChatList($content, currentCharId);
+                    renderChatList($content, currentCharKey);
                 } else if (currentView === VIEW_LEVELS.HIGHLIGHT_LIST) {
                     // 형광펜 리스트 뷰 - breadcrumb 업데이트 (채팅 제목 반영)
                     updateBreadcrumb();
                     // 형광펜 리스트도 다시 렌더링 (chatFile 기준)
-                    renderHighlightList($content, currentCharId, currentChatFile);
+                    renderHighlightList($content, currentCharKey, currentChatFile);
                 }
             }
         }
 
         // 현재 상태 저장 (다음 비교를 위해)
-        previousCharId = currentCharId;
+        previousCharId = this_chid;
         previousChatFile = currentChatFile;
         previousChatLength = currentChatLength;
         previousChatChangeTime = currentTime;
 
         // 현재 채팅의 첫/마지막 메시지 저장
-        if (chat && chat.length >= 1) { // ⭐ 3 → 1
-            previousChatMessages = {
-                first3: chat.slice(0, 3).map(m => (m.mes || '').substring(0, 100)),
-                last3: chat.slice(-3).map(m => (m.mes || '').substring(0, 100))
-            };
-        } else {
-            previousChatMessages = null;
-        }
+        updatePreviousChatMessages();
 
         restoreHighlightsInChat();
 
@@ -5702,9 +5945,10 @@ function showUpdateNotification(latestVersion) {
         });
 
         // ⭐ 데이터 복구 버튼
-        $('#hl-repair-orphaned-data-btn').off('click').on('click', function () {
-            if (confirm('삭제된 캐릭터(잘못된 ID를 가진 데이터)를 복구하시겠습니까?\n\n이 작업은 주인 없는 형광펜 데이터를 찾아 올바른 캐릭터에게 병합합니다.')) {
+        $('#hl-repair-orphaned-data-btn').off('click').on('click', async function () {
+            if (confirm('형광펜 데이터 동기화를 실행하시겠습니까?\n\n1. 캐릭터 데이터 복구: 연결이 끊어진 형광펜 데이터를 올바른 캐릭터에게 병합합니다.\n2. 채팅 데이터 복구: 채팅 제목이 변경되어 연결이 끊어진 데이터를 복구합니다.')) {
                 repairOrphanedData();
+                await repairUnmatchedChatData();
             }
         });
 
@@ -5836,6 +6080,9 @@ function showUpdateNotification(latestVersion) {
 
     // 과거 메시지 로딩 감지를 위한 MutationObserver 설정
     setupChatObserver();
+
+    // 채팅 이름 변경 버튼 클릭 가로채기 설정
+    setupRenameChatInterceptor();
 
     // 동적 색상 스타일 적용
     updateDynamicColorStyles();
