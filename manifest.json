@@ -6,8 +6,8 @@
     "js": "index.js",
     "css": "style.css",
     "author": "saving3899",
-    "version": "1.3.3",
-    "updateMessage": "1.3.3: 채팅 제목 변경 시 독서노트 자동 동기화 개선",
+    "version": "1.3.4",
+    "updateMessage": "1.3.4: 버그 개선 및 컨텍스트 메뉴 내 독서노트 열기 버튼 추가",
     "homePage": "https://github.com/saving3899/SillyTavern-Highlighter",
     "description": "이북앱 스타일 형광펜 모드 / 깡갤 대피소, 깡통 사이트에서만 배포됨"
 }

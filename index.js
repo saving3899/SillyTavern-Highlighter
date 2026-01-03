@@ -3045,7 +3045,8 @@ function createHighlight(text, color, range, el) {
         return;
     }
 
-    // ⭐ 단어 변환 호환성: DOM 수정 전에 원본 메시지에서 텍스트 확인
+    // ⭐ 하위 호환성: 원본 메시지에서 매칭되는 텍스트 찾기
+    // 정규식 변환된 텍스트도 저장 가능하도록 오류 없이 진행
     const originalMessage = chat[mesId]?.mes || '';
     const normalizedActualText = actualText.replace(/\s+/g, ' ').trim();
 
@@ -3078,15 +3079,20 @@ function createHighlight(text, color, range, el) {
         .replace(/\s+/g, ' ').trim();
     const normalizedOriginalMessage = originalMessage.replace(/\s+/g, ' ').trim();
 
-    // 마크다운 제거된 버전과 원본 버전 둘 다 확인
-    if (!normalizedOriginalMessage.includes(normalizedActualText) &&
-        !strippedOriginalMessage.includes(normalizedActualText)) {
-        // 단어 변환 등으로 변환된 텍스트일 수 있음
+    // ⭐ 원본 텍스트 매칭 여부 확인 (하위 호환성용)
+    // 매칭되면 originalText에 저장, 매칭되지 않아도 오류 없이 진행
+    let matchedOriginalText = null;
+
+    if (normalizedOriginalMessage.includes(normalizedActualText) ||
+        strippedOriginalMessage.includes(normalizedActualText)) {
+        // 원본 메시지에서 매칭됨
+        matchedOriginalText = actualText;
+    } else {
+        // 원본에 없음 - original-html 확인
         const $mesText = $mes.find('.mes_text');
         const originalHtml = $mesText.data('original-html');
 
         if (originalHtml) {
-            // 원본 HTML에서 텍스트 추출 (단어 변환 span 제거)
             const checkDiv = document.createElement('div');
             checkDiv.innerHTML = originalHtml;
             checkDiv.querySelectorAll('.word-hider-hidden').forEach(el => {
@@ -3094,26 +3100,11 @@ function createHighlight(text, color, range, el) {
             });
             const originalText = (checkDiv.textContent || '').replace(/\s+/g, ' ').trim();
 
-            if (!originalText.includes(normalizedActualText)) {
-                // 원본에도 없음 - 변환된 텍스트
-                toastr.warning(
-                    '선택한 텍스트가 원본 메시지에 존재하지 않습니다.<br>' +
-                    '단어 변환 기능 등이 적용된 경우, 해당 기능을 끄고 형광펜을 생성해주세요.',
-                    '형광펜 저장 불가',
-                    { timeOut: 5000, escapeHtml: false }
-                );
-                return; // DOM 수정 전에 반환
+            if (originalText.includes(normalizedActualText)) {
+                matchedOriginalText = actualText;
             }
-        } else {
-            // original-html이 없지만 원본 메시지에도 없음 - 경고 표시
-            toastr.warning(
-                '선택한 텍스트가 원본 메시지에 존재하지 않습니다.<br>' +
-                '단어 변환 기능 등이 적용된 경우, 해당 기능을 끄고 형광펜을 생성해주세요.',
-                '형광펜 저장 불가',
-                { timeOut: 5000, escapeHtml: false }
-            );
-            return; // DOM 수정 전에 반환
         }
+        // 매칭되지 않아도 오류 없이 진행 (정규식 변환 텍스트 지원)
     }
 
     try {
@@ -3196,6 +3187,7 @@ function createHighlight(text, color, range, el) {
         mesId: mesId,
         swipeId: getCurrentSwipeId(mesId), // 스와이프 ID 저장
         text: actualText,
+        originalText: matchedOriginalText, // ⭐ 원본 텍스트 (하위 호환성 - 폴백 검색용)
         color: color,
         colorIndex: getColorIndex(color), // 색상 인덱스 저장 (프리셋 전환 시 정확한 매핑)
         note: '',
@@ -3293,6 +3285,10 @@ function showHighlightContextMenu(hlId, x, y) {
                 <i class="fa-solid fa-copy"></i>
                 <span>복사</span>
             </button>
+            <button class="hl-context-btn" data-action="open-panel">
+                <i class="fa-solid fa-book-open"></i>
+                <span>독서노트 열기</span>
+            </button>
             <button class="hl-context-btn hl-context-delete" data-action="delete">
                 <i class="fa-solid fa-trash"></i>
                 <span>삭제</span>
@@ -3343,6 +3339,14 @@ function showHighlightContextMenu(hlId, x, y) {
                 break;
             case 'copy':
                 showCopyModal(menuHlId, menuCharId, menuChatFile);
+                $('#highlight-context-menu').remove();
+                break;
+            case 'open-panel':
+                // 패널 열고 현재 채팅의 형광펜 목록으로 이동
+                selectedCharacter = menuCharId;
+                selectedChat = menuChatFile;
+                navigateToHighlightList(menuCharId, menuChatFile);
+                openPanel();
                 $('#highlight-context-menu').remove();
                 break;
             case 'delete':
@@ -4747,7 +4751,8 @@ function highlightTextInElement(element, hl) {
     }
 
     // 줄바꿈 정규화 및 매핑 테이블 생성
-    const normalizedSearchText = hl.text.replace(/\s+/g, ' ').trim();
+    let searchText = hl.text;
+    let normalizedSearchText = searchText.replace(/\s+/g, ' ').trim();
     let normalizedFullText = '';
     const indexMap = []; // normalizedFullText의 각 문자가 fullText의 어느 인덱스에 해당하는지
 
@@ -4769,7 +4774,17 @@ function highlightTextInElement(element, hl) {
     normalizedFullText = normalizedFullText.trim();
 
     // 정규화된 텍스트에서 시작 위치 찾기
-    const normalizedStartIndex = normalizedFullText.indexOf(normalizedSearchText);
+    let normalizedStartIndex = normalizedFullText.indexOf(normalizedSearchText);
+
+    // ⭐ 폴백: originalText로 재시도 (하위 호환성)
+    if (normalizedStartIndex === -1 && hl.originalText && hl.originalText !== hl.text) {
+        const fallbackSearch = hl.originalText.replace(/\s+/g, ' ').trim();
+        normalizedStartIndex = normalizedFullText.indexOf(fallbackSearch);
+        if (normalizedStartIndex !== -1) {
+            normalizedSearchText = fallbackSearch;
+        }
+    }
+
     if (normalizedStartIndex === -1) return false;
 
     const normalizedEndIndex = normalizedStartIndex + normalizedSearchText.length;
