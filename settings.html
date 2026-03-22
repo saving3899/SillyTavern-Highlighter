@@ -1,144 +1,198 @@
 <div class="highlighter-settings">
     <div class="inline-drawer">
         <div class="inline-drawer-toggle inline-drawer-header">
-            <b><i class="fa-solid fa-highlighter"></i> 형광펜</b>
+            <b><i class="fa-solid fa-highlighter" style="color: #ffe58a !important;"></i> 형광펜</b>
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
 
         <div class="inline-drawer-content">
-            <div class="settings-section">
-                <h3>기본 설정</h3>
+            <!-- 탭 라디오 (숨김) -->
+            <input type="radio" name="hl-settings-tab" id="hl-tab-general" class="hl-tab-radio" checked>
+            <input type="radio" name="hl-settings-tab" id="hl-tab-color" class="hl-tab-radio">
+            <input type="radio" name="hl-settings-tab" id="hl-tab-data" class="hl-tab-radio">
 
-                <label>
-                    채팅 삭제 시 형광펜 처리:
-                    <select id="hl_setting_delete_mode" class="text_pole">
-                        <option value="keep">형광펜 보관</option>
-                        <option value="delete">형광펜도 삭제</option>
-                    </select>
-                </label>
-                <small style="display: block; margin: 5px 0 10px 0;">
-                    보관 모드는 채팅 삭제 후에도 형광펜을 유지합니다.
-                </small>
-
-                <label style="margin-bottom: 16px !important;">
-                    플로팅 버튼 위치:
-                    <select id="hl_setting_button_position" class="text_pole">
-                        <option value="bottom-right">우측 하단</option>
-                        <option value="bottom-left">좌측 하단</option>
-                        <option value="top-right">우측 상단</option>
-                        <option value="top-left">좌측 상단</option>
-                    </select>
-                </label>
-
-                <div style="margin-bottom: 16px !important;">
-                    <label
-                        style="display: flex; align-items: center; gap: 8px; margin-top: 12px; cursor: pointer; user-select: none;">
-                        <input type="checkbox" id="hl_setting_show_floating_btn" checked
-                            style="margin-left: 0 !important;">
-                        <span style="color: #333 !important; font-size: 14px !important;">플로팅 버튼 표시</span>
-                    </label>
-                    <small style="display: block; margin: 0; color: #666;">
-                        체크 해제 시 플로팅 버튼이 숨겨지며, 요술봉 메뉴에서만 접근할 수 있습니다.
-                    </small>
-                </div>
-
-                <div style="margin-bottom: 16px !important;">
-                    <label
-                        style="display: flex; align-items: center; gap: 8px; margin-top: 12px; cursor: pointer; user-select: none;">
-                        <input type="checkbox" id="hl_setting_show_wand_button" checked
-                            style="margin-left: 0 !important;">
-                        <span style="color: #333 !important; font-size: 14px !important;">요술봉 메뉴 버튼 표시</span>
-                    </label>
-                    <small style="display: block; margin: 0; color: #666;">
-                        체크 해제 시 요술봉 메뉴에서 형광펜 버튼이 숨겨집니다.
-                    </small>
-                </div>
-
-                <div>
-                    <label
-                        style="display: flex; align-items: center; gap: 8px; margin-top: 12px; cursor: pointer; user-select: none;">
-                        <input type="checkbox" id="hl_setting_always_highlight_mode" style="margin-left: 0 !important;">
-                        <span style="color: #333 !important; font-size: 14px !important;">형광펜 모드 항상 활성화</span>
-                    </label>
-                    <small style="display: block; margin: 0; color: #666;">
-                        체크 시 형광펜 모드가 항상 활성화되며, 비활성화할 수 없습니다.
-                    </small>
-                </div>
+            <!-- 탭 네비게이션 -->
+            <div class="hl-tab-nav">
+                <label for="hl-tab-general" class="hl-tab-label">일반</label>
+                <label for="hl-tab-color" class="hl-tab-label">색상</label>
+                <label for="hl-tab-data" class="hl-tab-label">데이터</label>
             </div>
 
-            <hr style="border: none; border-top: 1px dashed #ddd; margin: 20px 0;">
+            <!-- 탭 1: 일반 -->
+            <div class="hl-tab-content hl-tab-general-content">
+                <div class="hl-settings-group">
+                    <div class="hl-setting-item hl-setting-inline">
+                        <span class="hl-setting-label">채팅 삭제 시 처리</span>
+                        <select id="hl_setting_delete_mode">
+                            <option value="keep">형광펜 보관</option>
+                            <option value="delete">형광펜도 삭제</option>
+                        </select>
+                    </div>
 
-            <div class="settings-section">
-                <h3>업데이트</h3>
-                <p style="margin-bottom: 12px; color: #666; font-size: 13px;">
-                    새 버전이 출시되었는지 수동으로 확인할 수 있습니다.
-                </p>
-                <button id="hl-check-update-btn" class="menu_button">
-                    <i class="fa-solid fa-sync"></i> 업데이트 확인
-                </button>
-                <div id="hl-update-status"
-                    style="margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 13px; display: none;"></div>
-            </div>
+                    <div class="hl-setting-item hl-setting-inline">
+                        <span class="hl-setting-label">플로팅 버튼 위치</span>
+                        <select id="hl_setting_button_position">
+                            <option value="bottom-right">우측 하단</option>
+                            <option value="bottom-left">좌측 하단</option>
+                            <option value="top-right">우측 상단</option>
+                            <option value="top-left">좌측 상단</option>
+                        </select>
+                    </div>
 
-            <hr style="border: none; border-top: 1px dashed #ddd; margin: 20px 0;">
+                    <div class="hl-setting-item hl-setting-check">
+                        <label class="hl-check-label">
+                            <input type="checkbox" id="hl_setting_show_floating_btn" checked>
+                            <span class="hl-check-text">플로팅 버튼 표시</span>
+                        </label>
+                        <small class="hl-setting-desc">숨기면 요술봉 메뉴에서만 접근</small>
+                    </div>
 
-            <div class="settings-section">
-                <h3>색상 커스터마이징</h3>
-                <p style="margin-bottom: 16px; color: #666; font-size: 13px;">
-                    형광펜 색상을 원하는 대로 변경할 수 있습니다. 각 색상 버튼의 색상, 불투명도, 글자색을 설정하세요.
-                </p>
+                    <!-- 플로팅 버튼 하위 설정 (표시 체크 시에만 보임) -->
+                    <div class="hl-floating-sub" style="display: none;">
+                        <div class="hl-setting-item hl-setting-inline">
+                            <span class="hl-setting-label">버튼 크기</span>
+                            <select id="hl_setting_floating_size">
+                                <option value="small">작게 (36px)</option>
+                                <option value="medium">보통 (48px)</option>
+                                <option value="large">크게 (60px)</option>
+                            </select>
+                        </div>
 
-                <div id="hl-color-customizer">
-                    <!-- 색상 버튼들이 여기에 동적으로 생성됩니다 -->
+                        <div class="hl-setting-item hl-setting-inline">
+                            <span class="hl-setting-label">버튼 색상</span>
+                            <input type="color" id="hl_setting_floating_color" value="#333333">
+                        </div>
+
+                        <div class="hl-setting-item hl-setting-inline">
+                            <span class="hl-setting-label">아이콘 색상</span>
+                            <input type="color" id="hl_setting_floating_icon_color" value="#ffffff">
+                        </div>
+
+                        <div class="hl-setting-item hl-setting-inline">
+                            <span class="hl-setting-label">버튼 아이콘</span>
+                            <select id="hl_setting_floating_icon">
+                                <option value="fa-bars">메뉴</option>
+                                <option value="fa-highlighter">형광펜</option>
+                                <option value="fa-book">책</option>
+                                <option value="fa-pen">펜</option>
+                                <option value="fa-bookmark">책갈피</option>
+                                <option value="fa-star">별</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="hl-setting-item hl-setting-check">
+                        <label class="hl-check-label">
+                            <input type="checkbox" id="hl_setting_show_wand_button" checked>
+                            <span class="hl-check-text">요술봉 메뉴 버튼 표시</span>
+                        </label>
+                        <small class="hl-setting-desc">숨기면 요술봉 메뉴에서 버튼 미표시</small>
+                    </div>
+
+                    <div class="hl-setting-item hl-setting-check">
+                        <label class="hl-check-label">
+                            <input type="checkbox" id="hl_setting_always_highlight_mode">
+                            <span class="hl-check-text">형광펜 모드 항상 활성화</span>
+                        </label>
+                        <small class="hl-setting-desc">비활성화 불가, 항상 유지</small>
+                    </div>
+
+                    <div class="hl-setting-item hl-setting-inline">
+                        <span class="hl-setting-label">책갈피 버튼 위치</span>
+                        <select id="hl_setting_bookmark_position">
+                            <option value="extraMesButtons">메시지 메뉴 안</option>
+                            <option value="topLeft">메시지 좌측 상단</option>
+                            <option value="topRight">메시지 우측 상단</option>
+                            <option value="none">표시안함</option>
+                        </select>
+                    </div>
                 </div>
 
-                <div style="display: flex; gap: 10px; margin-top: 16px;">
-                    <button id="hl-export-colors" class="menu_button" style="flex: 1;">
-                        <i class="fa-solid fa-download"></i> 색상 백업
+                <div class="hl-settings-group">
+                    <div class="hl-setting-item hl-setting-check">
+                        <label class="hl-check-label">
+                            <input type="checkbox" id="hl_setting_translator_compat">
+                            <span class="hl-check-text">LLM 번역기 호환</span>
+                        </label>
+                        <small class="hl-setting-desc">번역문에서도 형광펜을 정상 사용할 수 있도록 합니다</small>
+                    </div>
+
+                    <div class="hl-setting-item hl-setting-inline hl-translator-sub" style="display: none;">
+                        <span class="hl-setting-label">패널 표시 텍스트</span>
+                        <select id="hl_setting_translator_panel_display">
+                            <option value="translated">번역문</option>
+                            <option value="original">원문</option>
+                        </select>
+                    </div>
+
+                    <div class="hl-setting-item hl-setting-check hl-translator-sub" style="display: none;">
+                        <label class="hl-check-label">
+                            <input type="checkbox" id="hl_setting_translator_show_alt_text" checked>
+                            <span class="hl-check-text">패널에 대응 텍스트 표시</span>
+                        </label>
+                        <small class="hl-setting-desc">패널에서 번역문/원문 토글을 표시합니다</small>
+                    </div>
+
+                    <div class="hl-setting-item hl-setting-check hl-translator-sub" style="display: none;">
+                        <label class="hl-check-label">
+                            <input type="checkbox" id="hl_setting_translator_sync_highlight" checked>
+                            <span class="hl-check-text">번역문↔원문 동시 하이라이트</span>
+                        </label>
+                        <small class="hl-setting-desc">번역문에 형광펜을 칠하면 대응하는 원문에도 함께 표시됩니다</small>
+                    </div>
+                </div>
+
+                <div class="hl-settings-group hl-update-group">
+                    <button id="hl-check-update-btn" class="menu_button hl-settings-btn">
+                        <i class="fa-solid fa-sync"></i> 업데이트 확인
                     </button>
-                    <button id="hl-import-colors" class="menu_button" style="flex: 1;">
+                    <div id="hl-update-status" class="hl-update-status"></div>
+                </div>
+
+                <details class="hl-info-details">
+                    <summary class="hl-info-summary">
+                        <i class="fa-solid fa-circle-question"></i> 도움말
+                    </summary>
+                    <div class="hl-info-content">
+                        <div class="hl-info-block">
+                            <strong>저장</strong>
+                            <span>settings.json에 자동 저장. 패널에서 백업 가능.</span>
+                        </div>
+                        <div class="hl-info-block">
+                            <strong>사용</strong>
+                            <span>플로팅 버튼 → 형광펜 모드 → 드래그 → 색상 선택</span>
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <!-- 탭 2: 색상 -->
+            <div class="hl-tab-content hl-tab-color-content">
+                <div id="hl-color-customizer">
+                    <!-- 동적 생성 -->
+                </div>
+
+                <div class="hl-settings-btn-row">
+                    <button id="hl-export-colors" class="menu_button hl-settings-btn">
+                        <i class="fa-solid fa-download"></i> 백업
+                    </button>
+                    <button id="hl-import-colors" class="menu_button hl-settings-btn">
                         <i class="fa-solid fa-upload"></i> 불러오기
                     </button>
                 </div>
                 <input type="file" id="hl-color-import-input" accept=".json" style="display: none;">
             </div>
 
-            <hr style="border: none; border-top: 1px dashed #ddd; margin: 20px 0;">
-
-            <div class="settings-section">
-                <h3>저장 방식</h3>
-                <div
-                    style="padding: 12px; background: rgba(0,0,0,0.03); border-radius: 8px; line-height: 1.6; font-size: 13px;">
-                    <p><strong>📁 현재 저장 위치</strong></p>
-                    <p style="margin: 5px 0 12px 15px;">
-                        형광펜은 SillyTavern의 설정 파일(settings.json)에 자동 저장됩니다.
-                    </p>
-                    <p><strong>💾 백업 방법</strong></p>
-                    <p style="margin: 5px 0 12px 15px;">
-                        독서노트 패널의 "백업" 버튼을 눌러 JSON 파일로 다운로드할 수 있습니다.
-                    </p>
-
-
-                </div>
-            </div>
-
-            <hr style="border: none; border-top: 1px dashed #ddd; margin: 20px 0;">
-
-            <div class="settings-section">
-                <h3>사용 방법</h3>
-                <div
-                    style="padding: 12px; background: rgba(0,0,0,0.03); border-radius: 8px; line-height: 1.6; font-size: 13px;">
-                    <p><strong>1. 형광펜 모드 활성화</strong></p>
-                    <p style="margin: 5px 0 12px 15px;">플로팅 버튼 클릭 후, 패널의 형광펜 아이콘 클릭</p>
-
-                    <p><strong>2. 텍스트 형광펜 칠하기</strong></p>
-                    <p style="margin: 5px 0 12px 15px;">채팅 메시지에서 텍스트 드래그 → 색상 선택</p>
-
-                    <p><strong>3. 메모 추가</strong></p>
-                    <p style="margin: 5px 0 12px 15px;">형광펜 클릭 → 메모 입력</p>
-
-                    <p><strong>4. 패널 이동</strong></p>
-                    <p style="margin: 5px 0 0 15px;">패널 헤더를 드래그하여 이동 (데스크톱)</p>
+            <!-- 탭 3: 데이터 -->
+            <div class="hl-tab-content hl-tab-data-content">
+                <div class="hl-settings-group">
+                    <div class="hl-data-info">
+                        연결이 끊어진 형광펜 데이터를 복구합니다.<br>
+                        캐릭터 데이터, 채팅 데이터를 자동으로 검색하여 올바르게 병합합니다.
+                    </div>
+                    <button id="hl-repair-orphaned-data-btn" class="menu_button hl-settings-btn hl-settings-btn-full">
+                        <i class="fa-solid fa-wrench"></i> 데이터 복구
+                    </button>
                 </div>
             </div>
         </div>
@@ -146,575 +200,1237 @@
 </div>
 
 <style>
-    .highlighter-settings {
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    /* ================================================================
+       범위: .inline-drawer-content 하위만 (header는 ST 글로벌 유지)
+       모든 input 셀렉터는 body 접두어로 ST 글로벌보다 높은 specificity 확보
+       ================================================================ */
+
+    /* 글로벌 리셋 (header 제외) — :not(#_) 트릭으로 body div:not(#chat):not(#chat *) 등 초고 specificity 글로벌 CSS 대응 */
+    .highlighter-settings .inline-drawer-content:not(#_):not(#_),
+    .highlighter-settings .inline-drawer-content:not(#_):not(#_) *,
+    .highlighter-settings .inline-drawer-content:not(#_):not(#_) *::before,
+    .highlighter-settings .inline-drawer-content:not(#_):not(#_) *::after {
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+        text-shadow: none !important;
+        -webkit-text-stroke: 0 !important;
+    }
+
+    /* Font Awesome 아이콘은 FA 폰트 사용 (::before 포함) */
+    .highlighter-settings .inline-drawer-content:not(#_):not(#_) i[class*="fa-"],
+    .highlighter-settings .inline-drawer-content:not(#_):not(#_) i[class*="fa-"]::before,
+    .highlighter-settings .inline-drawer-content:not(#_):not(#_) i[class*="fa-"]::after {
+        font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands" !important;
+    }
+
+    .highlighter-settings .inline-drawer-content i[class*="fa-"] {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: auto !important;
+        height: auto !important;
+        font-size: 12px !important;
+        color: inherit !important;
+        pointer-events: none !important;
+        margin-right: 4px !important;
+    }
+
+    /* 기본 텍스트 색상/크기 리셋 — preview-text, color-preview, preset-tab 제외 */
+    .highlighter-settings .inline-drawer-content span:not(.hl-preset-tab-name):not(.hl-preview-highlight),
+    .highlighter-settings .inline-drawer-content small,
+    .highlighter-settings .inline-drawer-content strong,
+    .highlighter-settings .inline-drawer-content label,
+    .highlighter-settings .inline-drawer-content div:not(.hl-color-preview):not(.hl-color-preview-text):not(.hl-preset-tab),
+    .highlighter-settings .inline-drawer-content p,
+    .highlighter-settings .inline-drawer-content b {
+        color: #333 !important;
+        font-size: inherit !important;
+    }
+
+    /* i 태그 색상/크기 — ST 글로벌 오버라이드 */
+    .highlighter-settings .inline-drawer-content i {
+        color: inherit !important;
+        font-size: inherit !important;
     }
 
     .highlighter-settings .inline-drawer-content {
-        padding: 24px;
-        background: #fafafa;
-        border-radius: 12px;
-        border: 1px solid #e8e8e8;
-        border-top: none;
-        overflow: visible !important;
-    }
-
-    .highlighter-settings .settings-section {
-        margin-bottom: 24px;
-        background: #ffffff;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        overflow: visible !important;
-    }
-
-    .highlighter-settings .settings-section:last-child {
-        margin-bottom: 0;
-    }
-
-    .highlighter-settings .settings-section h3 {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin-bottom: 16px;
-        margin-top: 0;
-        color: #333;
-        border-bottom: 2px solid #FFE4B5;
-        padding-bottom: 8px;
-    }
-
-    .highlighter-settings label {
-        display: block;
-        font-size: 14px;
-        margin-bottom: 0px !important;
-        color: #555;
-        font-weight: 500;
-    }
-
-    .highlighter-settings select {
-        width: 100%;
-        padding: 10px 12px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        font-size: 14px !important;
-        margin-top: 5px;
-        margin-bottom: 0px !important;
-        background: #fff;
-        transition: border-color 0.2s, box-shadow 0.2s;
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
-        color: #333 !important;
-    }
-
-    .highlighter-settings select:focus {
-        outline: none;
-        border-color: #FFE4B5;
-        box-shadow: 0 0 0 3px rgba(255, 228, 181, 0.5);
-    }
-
-    .highlighter-settings small {
-        color: #777;
-        line-height: 1.5;
-    }
-
-    .highlighter-settings hr {
-        border: none;
-        height: 1px;
-        background: linear-gradient(to right, transparent, #ddd, transparent);
-        margin: 24px 0;
-    }
-
-    .highlighter-settings .settings-section>div[style*="background"] {
-        background: #f8f9fa !important;
-        border: 1px solid #e9ecef;
-        padding: 16px !important;
+        padding: 12px 16px !important;
+        padding-top: 4px !important;
+        margin-top: 10px !important;
+        background: #f8f8f8 !important;
+        border: none !important;
         border-radius: 8px !important;
-        line-height: 1.7 !important;
+        box-shadow: none !important;
     }
 
-    .highlighter-settings .settings-section>div[style*="background"] p {
-        margin: 0 0 10px 0;
-        color: #444;
+    /* ===== 탭 시스템 ===== */
+    .hl-tab-radio {
+        display: none !important;
     }
 
-    .highlighter-settings .settings-section>div[style*="background"] p:last-child {
-        margin-bottom: 0;
+    .hl-tab-nav {
+        display: flex !important;
+        gap: 0 !important;
+        border-bottom: 1px solid #e0e0e0 !important;
+        margin-bottom: 12px !important;
     }
 
-    .highlighter-settings .settings-section>div[style*="background"] strong {
-        color: #222;
-        font-weight: 600;
-    }
-
-    /* 색상 커스터마이저 */
-    #hl-color-customizer {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        overflow: visible !important;
-    }
-
-    /* 프리셋 탭 */
-    .hl-preset-tabs {
-        display: flex;
-        gap: 6px;
-        margin-bottom: 16px;
-        flex-wrap: wrap;
-    }
-
-    .hl-preset-tab {
-        flex: 1;
-        min-width: 80px;
-        padding: 8px 0px;
-        background: #f0f0f0;
-        border: 2px solid #ddd;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-align: center;
-        color: #555;
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-    }
-
-    .hl-preset-tab:hover {
-        background: #e8e8e8;
-        border-color: #ccc;
-    }
-
-    .hl-preset-tab.active {
-        background: #FFE4B5;
-        border-color: #ffc18f;
-        color: #8B7355;
-    }
-
-    .hl-preset-tab.selected {
-        background: #fff3e0;
-        border-color: #ffcc80;
-        color: #f57c00;
-    }
-
-    .hl-preset-tab-name {
-        flex: 1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        min-width: 0;
-        padding: 0 8px;
-    }
-
-    html body div.highlighter-settings div.settings-section div#hl-color-customizer div.hl-preset-tabs div.hl-preset-tab span.hl-preset-tab-name {
-        font-size: 13px !important;
+    .hl-tab-label {
+        flex: 1 !important;
+        text-align: center !important;
+        padding: 8px 0 !important;
+        font-size: 12px !important;
         font-weight: 500 !important;
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
-        line-height: 1.4rem !important;
-        -webkit-text-stroke: 0 !important;
-    }
-
-    html body div.highlighter-settings div.settings-section div#hl-color-customizer div.hl-preset-tabs div.hl-preset-tab.active span.hl-preset-tab-name {
-        font-weight: 600 !important;
-        -webkit-text-stroke: 0 !important;
-    }
-
-    html body div.highlighter-settings div.settings-section div#hl-color-customizer div.hl-preset-tabs div.hl-preset-tab.selected span.hl-preset-tab-name {
-        font-weight: 500 !important;
-        -webkit-text-stroke: 0 !important;
-    }
-
-    /* 프리셋 관리 버튼 */
-    .hl-preset-controls {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-        gap: 12px;
-    }
-
-    .hl-preset-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: #333;
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        flex: 1;
-        min-width: 0;
-    }
-
-    .hl-preset-buttons {
-        display: flex;
-        gap: 8px;
-        flex-shrink: 0;
-    }
-
-    .hl-preset-apply-btn,
-    .hl-preset-rename-btn {
-        padding: 6px 12px;
-        background: #f8f9fa;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 12px;
-        color: #555;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-    }
-
-    .hl-preset-apply-btn {
-        background: #fff3e0;
-        border-color: #ffcc80;
-        color: #f57c00;
-        font-weight: 500;
-    }
-
-    .hl-preset-apply-btn:hover {
-        background: #ffe0b2;
-        border-color: #ffb74d;
-    }
-
-    .hl-preset-rename-btn:hover {
-        background: #e9ecef;
-        border-color: #ccc;
-    }
-
-    .hl-preset-apply-btn i,
-    .hl-preset-rename-btn i {
-        margin-right: 4px;
-        font-size: 11px;
-    }
-
-    /* 빠른 색상 적용 */
-    .hl-quick-color-input {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-bottom: 16px;
-        padding: 12px;
-        background: #f8f9fa;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-    }
-
-    .hl-quick-color-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .hl-quick-color-input label {
-        font-size: 14px;
-        font-weight: 600;
-        color: #333;
-        margin: 0;
-    }
-
-    .hl-quick-color-field {
-        width: 100%;
-        padding: 8px 10px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 14px !important;
-        background: #fff;
-        box-sizing: border-box;
-        color: #505050;
-    }
-
-    .hl-quick-color-field:focus {
-        outline: none;
-        border-color: #FFE4B5;
-        box-shadow: 0 0 0 3px rgba(255, 228, 181, 0.3);
-    }
-
-    .hl-quick-color-hint {
-        font-size: 12px;
-        color: #777;
-        line-height: 1.4;
-        margin: 0 0 4px 0;
-        text-align: center;
-    }
-
-    .hl-quick-color-apply-btn {
-        padding: 6px 20px;
-        background: #FFE4B5;
-        border: 1px solid #ffc18f;
-        border-radius: 6px;
-        font-size: 12px;
-        color: #222;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-    }
-
-    .hl-quick-color-apply-btn:hover {
-        background: #ffd89b;
-        border-color: #ffb74d;
-    }
-
-    .hl-color-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 12px;
-        padding: 12px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        border: 1px solid #e0e0e0;
-        overflow: visible !important;
-    }
-
-    .hl-color-preview {
-        width: 50px;
-        height: 50px;
-        border-radius: 8px;
-        border: 2px solid #ddd;
-        cursor: pointer;
-        transition: transform 0.2s;
-        flex-shrink: 0;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .hl-color-preview:hover {
-        transform: scale(1.05);
-    }
-
-    .hl-color-preview-text {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-weight: 600;
-        font-size: 18px;
-        pointer-events: none;
-    }
-
-    .hl-color-controls {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        overflow: visible !important;
-    }
-
-    .hl-color-control-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        overflow: visible !important;
-        padding: 10px 0 !important;
-        min-height: 44px !important;
-    }
-
-    .hl-color-control-row label {
-        min-width: 60px;
-        margin: 0;
-        font-size: 13px;
-        font-weight: 500;
-    }
-
-    .hl-color-control-row input[type="color"] {
-        width: 60px;
-        height: 32px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        cursor: pointer;
-    }
-
-    .hl-color-control-row input[type="range"] {
-        flex: 1;
-    }
-
-    .hl-color-control-row input[type="number"] {
-        width: 60px;
-        padding: 6px 8px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 13px !important;
-        text-align: center;
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
-        color: #333 !important;
-    }
-
-    .hl-color-control-row input[type="number"]:focus {
-        outline: none;
-        border-color: #FFE4B5;
-        box-shadow: 0 0 0 3px rgba(255, 228, 181, 0.5);
-    }
-
-    .hl-color-control-row input.hl-hex-input {
-        width: 60px;
-        padding: 6px 8px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 13px !important;
-        text-align: center;
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
-        color: #333 !important;
-        text-transform: uppercase;
-    }
-
-    .hl-color-control-row input.hl-hex-input:focus {
-        outline: none;
-        border-color: #FFE4B5;
-        box-shadow: 0 0 0 3px rgba(255, 228, 181, 0.5);
-    }
-
-    /* 체크박스 커스텀 스타일 */
-    .highlighter-settings input[type="checkbox"] {
-        appearance: none !important;
-        -webkit-appearance: none !important;
-        -moz-appearance: none !important;
-        width: 20px !important;
-        height: 20px !important;
-        border: 2px solid #ddd !important;
-        border-radius: 4px !important;
+        color: #999 !important;
         cursor: pointer !important;
-        position: relative !important;
+        user-select: none !important;
+        border-bottom: 2px solid transparent !important;
+        margin-bottom: -1px !important;
         transition: all 0.2s ease !important;
-        background: #fff !important;
+    }
+
+    .hl-tab-label:hover {
+        color: #666 !important;
+    }
+
+    /* 탭 활성 상태 */
+    #hl-tab-general:checked~.hl-tab-nav .hl-tab-label[for="hl-tab-general"],
+    #hl-tab-color:checked~.hl-tab-nav .hl-tab-label[for="hl-tab-color"],
+    #hl-tab-data:checked~.hl-tab-nav .hl-tab-label[for="hl-tab-data"] {
+        color: #333 !important;
+        font-weight: 600 !important;
+        border-bottom-color: #555 !important;
+    }
+
+    /* 탭 콘텐츠 표시/숨김 */
+    .hl-tab-content {
+        display: none !important;
+    }
+
+    #hl-tab-general:checked~.hl-tab-general-content {
+        display: block !important;
+    }
+
+    #hl-tab-color:checked~.hl-tab-color-content {
+        display: block !important;
+    }
+
+    #hl-tab-data:checked~.hl-tab-data-content {
+        display: block !important;
+    }
+
+    /* ===== 섹션 ===== */
+    .hl-settings-group {
+        padding: 8px 0 !important;
+        border-bottom: 1px solid #f0f0f0 !important;
+    }
+
+    .hl-settings-group:last-child {
+        border-bottom: none !important;
+    }
+
+    /* ===== 인라인 select ===== */
+    .hl-setting-item {
+        margin-bottom: 6px !important;
+    }
+
+    .hl-setting-item:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    .hl-setting-item.hl-setting-inline {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 12px !important;
+        padding: 4px 0 !important;
+    }
+
+    .hl-setting-label {
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        color: #444 !important;
+        white-space: nowrap !important;
         flex-shrink: 0 !important;
     }
 
-    .highlighter-settings input[type="checkbox"]:hover {
-        border-color: #ffc18f !important;
+    /* Select — body prefix로 ST의 select {} 보다 우선 */
+    body .highlighter-settings select {
+        width: auto !important;
+        min-width: 120px !important;
+        padding: 4px 8px !important;
+        border: 1px solid #d0d0d0 !important;
+        border-radius: 5px !important;
+        font-size: 12px !important;
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+        background-color: #fff !important;
+        background-image: none !important;
+        color: #333 !important;
+        cursor: pointer !important;
+        transition: border-color 0.2s !important;
+        -webkit-appearance: auto !important;
+        -moz-appearance: auto !important;
+        appearance: auto !important;
+        margin-bottom: 0 !important;
+        height: auto !important;
     }
 
-    .highlighter-settings input[type="checkbox"]:checked {
-        background: #ffc18f !important;
-        border-color: #ffc18f !important;
+    body .highlighter-settings select:hover {
+        border-color: #aaa !important;
     }
 
-    .highlighter-settings input[type="checkbox"]:checked::after {
-        content: '✓' !important;
+    body .highlighter-settings select:focus,
+    body .highlighter-settings select:focus-visible {
+        outline: none !important;
+        border-color: #888 !important;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    /* ===== 체크박스 — ST의 input[type='checkbox'] 완전 초기화 ===== */
+    .hl-setting-item.hl-setting-check {
+        padding: 3px 0 !important;
+    }
+
+    .hl-check-label {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        cursor: pointer !important;
+        user-select: none !important;
+        margin: 0 !important;
+    }
+
+    .hl-check-text {
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        color: #444 !important;
+    }
+
+    .hl-setting-desc {
+        display: block !important;
+        font-size: 11px !important;
+        color: #aaa !important;
+        margin: 1px 0 0 28px !important;
+        line-height: 1.3 !important;
+    }
+
+    .hl-translator-sub {
+        margin-left: 20px !important;
+    }
+
+    /* 플로팅 버튼 하위 설정 */
+    .hl-floating-sub {
+        margin-left: 20px !important;
+        padding: 6px 0 !important;
+        /* border-left: 2px solid #e0e0e0 !important; */
+        /* padding-left: 12px !important; */
+        margin-bottom: 6px !important;
+    }
+
+    /* 색상 입력 — ST 글로벌 오버라이드 */
+    body .highlighter-settings input[type="color"] {
+        width: 36px !important;
+        height: 28px !important;
+        padding: 2px !important;
+        border: 1px solid #d0d0d0 !important;
+        border-radius: 4px !important;
+        background: #fff !important;
+        cursor: pointer !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        appearance: none !important;
+        box-shadow: none !important;
+        filter: none !important;
+    }
+
+    body .highlighter-settings input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 2px !important;
+    }
+
+    body .highlighter-settings input[type="color"]::-webkit-color-swatch {
+        border: none !important;
+        border-radius: 2px !important;
+    }
+
+    body .highlighter-settings input[type="color"]:hover {
+        border-color: #aaa !important;
+    }
+
+    body .highlighter-settings input[type="checkbox"] {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        width: 15px !important;
+        height: 15px !important;
+        border: 1.5px solid #bbb !important;
+        border-radius: 3px !important;
+        cursor: pointer !important;
+        position: relative !important;
+        transition: all 0.15s ease !important;
+        background: #fff !important;
+        background-color: #fff !important;
+        flex-shrink: 0 !important;
+        margin: 0 !important;
+        /* ST 초기화 */
+        display: block !important;
+        place-content: unset !important;
+        box-shadow: none !important;
+        filter: none !important;
+    }
+
+    /* ST의 ::before 체크마크 제거 */
+    body .highlighter-settings input[type="checkbox"]::before {
+        display: none !important;
+        content: none !important;
+        transform: none !important;
+    }
+
+    body .highlighter-settings input[type="checkbox"]:hover {
+        border-color: #888 !important;
+    }
+
+    body .highlighter-settings input[type="checkbox"]:checked {
+        background: #555 !important;
+        background-color: #555 !important;
+        border-color: #555 !important;
+    }
+
+    body .highlighter-settings input[type="checkbox"]:checked::before {
+        display: none !important;
+        content: none !important;
+        transform: none !important;
+    }
+
+    body .highlighter-settings input[type="checkbox"]:checked::after {
+        content: '\2713' !important;
         position: absolute !important;
         top: 50% !important;
         left: 50% !important;
         transform: translate(-50%, -50%) !important;
-        color: #8B7355 !important;
-        font-size: 14px !important;
+        color: #fff !important;
+        font-size: 10px !important;
         font-weight: 700 !important;
+        line-height: 1 !important;
+        font-family: sans-serif !important;
     }
 
-    .highlighter-settings input[type="checkbox"]:focus {
+    body .highlighter-settings input[type="checkbox"]:focus,
+    body .highlighter-settings input[type="checkbox"]:focus-visible {
         outline: none !important;
-        box-shadow: 0 0 0 3px rgba(255, 228, 181, 0.5) !important;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08) !important;
     }
 
-    /* Range 슬라이더는 style.css에서 통합 관리 */
-
-    /* Color picker 커스텀 */
-    .highlighter-settings input[type="color"] {
-        -webkit-appearance: none !important;
-        -moz-appearance: none !important;
-        appearance: none !important;
-        width: 60px !important;
-        height: 32px !important;
-        border: 2px solid #ddd !important;
-        border-radius: 6px !important;
-        cursor: pointer !important;
-        padding: 2px !important;
-        background: #fff !important;
-        transition: all 0.2s ease !important;
-    }
-
-    .highlighter-settings input[type="color"]:hover {
-        border-color: #FFE4B5 !important;
-        transform: scale(1.05) !important;
-    }
-
-    .highlighter-settings input[type="color"]:focus {
-        outline: none !important;
-        box-shadow: 0 0 0 3px rgba(255, 228, 181, 0.5) !important;
-    }
-
-    .highlighter-settings input[type="color"]::-webkit-color-swatch-wrapper {
-        padding: 0 !important;
-    }
-
-    .highlighter-settings input[type="color"]::-webkit-color-swatch {
-        border: none !important;
-        border-radius: 4px !important;
-    }
-
-    .highlighter-settings input[type="color"]::-moz-color-swatch {
-        border: none !important;
-        border-radius: 4px !important;
-    }
-
-    body .highlighter-settings .settings-section>div button.menu_button,
-    body .highlighter-settings .settings-section>div button.menu_button i,
-    body .highlighter-settings .settings-section>div button.menu_button::before {
+    /* ===== 버튼 ===== */
+    body .highlighter-settings button.menu_button.hl-settings-btn {
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
-        font-size: 14px !important;
+        font-size: 12px !important;
         color: #333 !important;
         width: auto !important;
         height: auto !important;
-        min-width: auto !important;
-        padding: none !important;
-        border: none !important;
-        border-radius: none !important;
-        background-color: none !important;
+        min-width: 115px !important;
+        padding: 8px 14px !important;
+        border: 1px solid #d0d0d0 !important;
+        border-radius: 5px !important;
+        background: #fff !important;
+        cursor: pointer !important;
+        transition: all 0.15s ease !important;
+        flex: 1 !important;
+        filter: none !important;
+        margin: 0 !important;
     }
 
-    body .highlighter-settings .settings-section>div button#hl-export-colors,
-    body .highlighter-settings .settings-section>div button#hl-import-colors,
-    body .highlighter-settings .settings-section button#hl-check-update-btn {
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
-        font-size: 13px !important;
-        color: #333 !important;
-        width: calc(calc(100% / 2) - 5px) !important;
-        height: 33px !important;
-        min-width: auto !important;
-        padding: none !important;
-        border: 1px solid #ddd !important;
-        border-radius: 8px !important;
-        background-color: #f8f9fa !important;
-    }
-
-    body .highlighter-settings .settings-section>div button#hl-export-colors:hover,
-    body .highlighter-settings .settings-section>div button#hl-import-colors:hover,
-    body .highlighter-settings .settings-section button#hl-check-update-btn:hover {
-        background-color: #e9ecef !important;
-        border-color: #ccc !important;
+    body .highlighter-settings button.menu_button.hl-settings-btn:hover {
+        background: #f5f5f5 !important;
+        border-color: #aaa !important;
         transform: none !important;
     }
 
-    body .highlighter-settings .settings-section>div button#hl-export-colors i,
-    body .highlighter-settings .settings-section>div button#hl-import-colors i,
-    body .highlighter-settings .settings-section button#hl-check-update-btn i {
+    body .highlighter-settings button.menu_button.hl-settings-btn i {
+        font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands" !important;
+        font-size: 11px !important;
+        margin-right: 4px !important;
+        color: inherit !important;
+        width: auto !important;
+        height: auto !important;
+        min-width: auto !important;
+    }
+
+    .hl-settings-btn-full {
+        width: 100% !important;
+        flex: unset !important;
+    }
+
+    .hl-settings-btn-row {
+        display: flex !important;
+        gap: 8px !important;
+        margin-top: 10px !important;
+    }
+
+    /* ===== 업데이트 그룹 (버튼+상태 인라인) ===== */
+    .hl-update-group {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        gap: 8px !important;
+    }
+
+    .hl-update-group .hl-settings-btn {
+        flex-shrink: 0 !important;
+    }
+
+    .hl-update-status {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        padding: 6px 10px !important;
+        border-radius: 5px !important;
+        font-size: 12px !important;
+        display: none;
+    }
+
+    /* ===== 도움말 ===== */
+    .hl-info-details {
+        margin-top: 4px !important;
+        border: none !important;
+    }
+
+    .hl-info-summary {
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        color: #aaa !important;
+        cursor: pointer !important;
+        user-select: none !important;
+        padding: 4px 0 !important;
+        list-style: none !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+    }
+
+    .hl-info-summary::-webkit-details-marker {
+        display: none !important;
+    }
+
+    .hl-info-summary::before {
+        content: '\25B6' !important;
+        font-size: 7px !important;
+        transition: transform 0.15s !important;
+        display: inline-block !important;
+        font-family: inherit !important;
+    }
+
+    .hl-info-details[open]>.hl-info-summary::before {
+        transform: rotate(90deg) !important;
+    }
+
+    .hl-info-summary:hover {
+        color: #777 !important;
+    }
+
+    .hl-info-content {
+        padding: 6px 0 2px 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+    }
+
+    .hl-info-block {
+        font-size: 11px !important;
+        line-height: 1.4 !important;
+        color: #888 !important;
+        padding: 4px 8px !important;
+        background: rgba(0, 0, 0, 0.02) !important;
+        border-radius: 4px !important;
+    }
+
+    .hl-info-block strong {
+        color: #555 !important;
+        font-weight: 600 !important;
+        margin-right: 6px !important;
+        font-size: 11px !important;
+    }
+
+    .hl-info-block span {
+        font-size: inherit !important;
+        color: inherit !important;
+    }
+
+    /* ===== 데이터 탭 ===== */
+    .hl-data-info {
+        font-size: 12px !important;
+        color: #888 !important;
+        line-height: 1.5 !important;
+        margin-bottom: 10px !important;
+        padding: 8px 10px !important;
+        background: rgba(0, 0, 0, 0.02) !important;
+        border-radius: 5px !important;
+    }
+
+    /* ===== 색상 커스터마이저 ===== */
+    #hl-color-customizer {
+        margin-bottom: 0 !important;
+    }
+
+    .hl-preset-tabs {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+        margin-bottom: 8px !important;
+        padding-bottom: 8px !important;
+        border-bottom: 1px solid #e0e0e0 !important;
+    }
+
+    /* 프리셋 탭 — body prefix로 글로벌 div 리셋(0,2,1)보다 우선 */
+    body .highlighter-settings .hl-preset-tab {
+        padding: 3px 10px !important;
+        border: 1px solid #d0d0d0 !important;
+        border-radius: 12px !important;
+        cursor: pointer !important;
+        font-size: 11px !important;
+        color: #666 !important;
+        background: #fff !important;
+        transition: all 0.15s ease !important;
+        user-select: none !important;
+        max-width: 100px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    body .highlighter-settings .hl-preset-tab:hover {
+        border-color: #aaa !important;
+        background: #f5f5f5 !important;
+        color: #666 !important;
+    }
+
+    body .highlighter-settings .hl-preset-tab.active {
+        background: #555 !important;
+        border-color: #555 !important;
+        color: #fff !important;
+        font-weight: 600 !important;
+    }
+
+    body .highlighter-settings .hl-preset-tab.selected:not(.active) {
+        border-color: #888 !important;
+        background: #f0f0f0 !important;
+    }
+
+    /* 프리셋 탭 내부 span — 글로벌 span 리셋보다 우선 */
+    body .highlighter-settings .inline-drawer-content .hl-preset-tab .hl-preset-tab-name {
+        display: inline !important;
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+        font-size: 11px !important;
+        line-height: 1.4 !important;
+        -webkit-text-stroke: 0 !important;
+        color: inherit !important;
+    }
+
+    /* 프리셋 관리 */
+    .hl-preset-controls {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 6px !important;
+        margin-bottom: 8px !important;
+        padding: 6px 8px !important;
+        background: #fafafa !important;
+        border-radius: 5px !important;
+        border: 1px solid #e0e0e0 !important;
+    }
+
+    .hl-preset-title {
+        font-weight: 600 !important;
         font-size: 12px !important;
         color: #333 !important;
-        margin-right: 6px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
     }
 
-    /* 업데이트 확인 버튼은 혼자 있으므로 전체 너비 */
-    body .highlighter-settings .settings-section button#hl-check-update-btn {
-        width: 100% !important;
+    .hl-preset-buttons {
+        display: flex !important;
+        gap: 4px !important;
     }
 
-    .hl-color-control-row .hl-use-default-label {
-        font-size: 13px !important;
+    body .highlighter-settings .hl-preset-apply-btn,
+    body .highlighter-settings .hl-preset-rename-btn {
+        padding: 3px 8px !important;
+        border: 1px solid #d0d0d0 !important;
+        border-radius: 4px !important;
+        background: #fff !important;
+        cursor: pointer !important;
+        font-size: 11px !important;
         color: #555 !important;
-        cursor: pointer;
-        user-select: none;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        transition: all 0.15s ease !important;
+        white-space: nowrap !important;
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+    }
+
+    body .highlighter-settings .hl-preset-apply-btn:hover,
+    body .highlighter-settings .hl-preset-rename-btn:hover {
+        background: #f0f0f0 !important;
+        border-color: #aaa !important;
+    }
+
+    .hl-preset-apply-btn i,
+    .hl-preset-rename-btn i {
+        margin-right: 2px !important;
+        font-size: inherit !important;
+        color: inherit !important;
+    }
+
+    /* 빠른 색상 */
+    .hl-quick-color-input {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 5px !important;
+        margin-bottom: 8px !important;
+        padding: 8px !important;
+        background: #fafafa !important;
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 5px !important;
+    }
+
+    .hl-quick-color-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+    }
+
+    .hl-quick-color-input label {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #333 !important;
+        margin: 0 !important;
+    }
+
+    body .highlighter-settings .hl-quick-color-field {
+        width: 100% !important;
+        padding: 5px 7px !important;
+        border: 1px solid #d0d0d0 !important;
+        border-radius: 4px !important;
+        font-size: 12px !important;
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+        background: #fff !important;
+        background-color: #fff !important;
+        background-image: none !important;
+        box-sizing: border-box !important;
+        color: #444 !important;
+        outline: none !important;
+    }
+
+    body .highlighter-settings .hl-quick-color-field:focus,
+    body .highlighter-settings .hl-quick-color-field:focus-visible {
+        outline: none !important;
+        border-color: #888 !important;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    .hl-quick-color-hint {
+        font-size: 10px !important;
+        color: #aaa !important;
+        line-height: 1.3 !important;
+        margin: 0 !important;
+        text-align: center !important;
+    }
+
+    body .highlighter-settings .hl-quick-color-apply-btn {
+        padding: 4px 14px !important;
+        background: #555 !important;
+        border: 1px solid #555 !important;
+        border-radius: 4px !important;
+        font-size: 11px !important;
+        color: #fff !important;
+        font-weight: 500 !important;
+        cursor: pointer !important;
+        transition: all 0.15s ease !important;
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+        filter: none !important;
+    }
+
+    body .highlighter-settings .hl-quick-color-apply-btn:hover {
+        background: #444 !important;
+    }
+
+    /* 색상 아이템 */
+    .hl-color-item {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 6px !important;
+        padding: 8px !important;
+        background: #fafafa !important;
+        border-radius: 5px !important;
+        border: 1px solid #e0e0e0 !important;
+        overflow: visible !important;
+        position: relative;
+    }
+
+    .hl-color-item+.hl-color-item {
+        border-top: 0 !important;
+        border-top-left-radius: 0 !important;
+        border-top-right-radius: 0 !important;
+        padding-top: 12px !important;
+    }
+
+    .hl-color-item+.hl-color-item::before {
+        content: '' !important;
+        display: flex !important;
+        position: absolute;
+        width: calc(100% - 16px) !important;
+        height: 1px !important;
+        background-color: #e0e0e0 !important;
+        top: 0 !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-color-item+.hl-color-item::before {
+        background-color: #3a3a3a !important;
+    }
+
+    .hl-color-item:has(+ .hl-color-item) {
+        border-bottom: 0 !important;
+        border-bottom-left-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+        padding-bottom: 12px !important;
+    }
+
+    .hl-color-preview {
+        width: 100% !important;
+        min-height: 36px !important;
+        height: auto !important;
+        border-radius: 5px !important;
+        border: 1px solid #ddd !important;
+        cursor: pointer !important;
+        transition: transform 0.15s !important;
+        flex-shrink: 0 !important;
+        position: relative !important;
+        overflow: hidden !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 6px 10px !important;
+    }
+
+    .hl-color-preview:hover {
+        transform: scale(1.02) !important;
+    }
+
+    .hl-color-preview-text {
+        font-weight: 500 !important;
+        font-size: 14px !important;
+        pointer-events: none !important;
+        line-height: 1.4 !important;
+        padding: 2px 4px !important;
+        border-radius: 2px !important;
+        white-space: nowrap !important;
+    }
+
+    .hl-color-controls {
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 2px !important;
+        overflow: visible !important;
+    }
+
+    .hl-color-control-row {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        overflow: visible !important;
+        padding: 4px 0 !important;
+        min-height: 32px !important;
+    }
+
+    .hl-color-control-row label {
+        min-width: 48px !important;
+        margin: 0 !important;
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        color: #555 !important;
+    }
+
+    /* Color 인풋 — body prefix */
+    body .highlighter-settings .hl-color-control-row input[type="color"] {
+        width: 44px !important;
+        height: 26px !important;
+        border: 1px solid #d0d0d0 !important;
+        border-radius: 4px !important;
+        cursor: pointer !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        appearance: none !important;
+        padding: 2px !important;
+        background: #fff !important;
+        background-color: #fff !important;
+    }
+
+    body .highlighter-settings .hl-color-control-row input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 0 !important;
+    }
+
+    body .highlighter-settings .hl-color-control-row input[type="color"]::-webkit-color-swatch {
+        border: none !important;
+        border-radius: 2px !important;
+    }
+
+    body .highlighter-settings .hl-color-control-row input[type="color"]::-moz-color-swatch {
+        border: none !important;
+        border-radius: 2px !important;
+    }
+
+    /* Range 인풋 — body prefix */
+    body .highlighter-settings .hl-color-control-row input[type="range"] {
+        flex: 1 !important;
+        -webkit-appearance: auto !important;
+        appearance: auto !important;
+    }
+
+    body .highlighter-settings input[type="range"]::-webkit-slider-thumb {
+        background: #888 !important;
+    }
+
+    body .highlighter-settings input[type="range"]::-moz-range-thumb {
+        background: #888 !important;
+    }
+
+    /* Number 인풋 — body prefix */
+    body .highlighter-settings .hl-color-control-row input[type="number"] {
+        width: 48px !important;
+        padding: 3px 5px !important;
+        border: 1px solid #d0d0d0 !important;
+        border-radius: 4px !important;
+        font-size: 11px !important;
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+        text-align: center !important;
+        color: #333 !important;
+        background: #fff !important;
+        background-color: #fff !important;
+        background-image: none !important;
+        outline: none !important;
+    }
+
+    body .highlighter-settings .hl-color-control-row input[type="number"]:focus,
+    body .highlighter-settings .hl-color-control-row input[type="number"]:focus-visible {
+        outline: none !important;
+        border-color: #888 !important;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    /* Hex 인풋 — body prefix */
+    body .highlighter-settings .hl-color-control-row input.hl-hex-input {
+        width: 52px !important;
+        padding: 3px 5px !important;
+        border: 1px solid #d0d0d0 !important;
+        border-radius: 4px !important;
+        font-size: 11px !important;
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+        text-align: center !important;
+        color: #333 !important;
+        text-transform: uppercase !important;
+        background: #fff !important;
+        background-color: #fff !important;
+        background-image: none !important;
+        outline: none !important;
+    }
+
+    body .highlighter-settings .hl-color-control-row input.hl-hex-input:focus,
+    body .highlighter-settings .hl-color-control-row input.hl-hex-input:focus-visible {
+        outline: none !important;
+        border-color: #888 !important;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    /* Color picker (일반) — body prefix */
+    body .highlighter-settings input[type="color"] {
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        appearance: none !important;
+        border: 1.5px solid #d0d0d0 !important;
+        border-radius: 4px !important;
+        cursor: pointer !important;
+        padding: 2px !important;
+        background: #fff !important;
+        background-color: #fff !important;
+        transition: all 0.15s ease !important;
+    }
+
+    body .highlighter-settings input[type="color"]:hover {
+        border-color: #888 !important;
+    }
+
+    body .highlighter-settings input[type="color"]:focus,
+    body .highlighter-settings input[type="color"]:focus-visible {
+        outline: none !important;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    body .highlighter-settings input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 0 !important;
+    }
+
+    body .highlighter-settings input[type="color"]::-webkit-color-swatch {
+        border: none !important;
+        border-radius: 2px !important;
+    }
+
+    body .highlighter-settings input[type="color"]::-moz-color-swatch {
+        border: none !important;
+        border-radius: 2px !important;
+    }
+
+    /* Use-default 라벨 */
+    .hl-color-control-row .hl-use-default-label {
+        font-size: 11px !important;
+        color: #555 !important;
+        cursor: pointer !important;
+        user-select: none !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 5px !important;
     }
 
     .hl-color-control-row .hl-use-default-label input[type="checkbox"] {
-        margin: 0;
+        margin: 0 !important;
     }
 
-    .highlighter-settings .hl-color-control-row .hl-use-default-label .hl-checkbox-text {
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
-        font-size: 13px !important;
+    body .highlighter-settings .hl-color-control-row .hl-use-default-label .hl-checkbox-text {
+        font-size: 11px !important;
         font-weight: normal !important;
-        line-height: 1.5 !important;
+        line-height: 1.3 !important;
         -webkit-text-stroke: 0 !important;
         color: #555 !important;
+    }
+
+    /* ================================================================
+       다크모드
+       ================================================================ */
+
+    /* 배경 */
+    .highlighter-settings.dark-mode .inline-drawer-content {
+        background: #1e1e1e !important;
+    }
+
+    /* 텍스트 색상/크기 리셋 — preview-text, color-preview, preset-tab 제외 */
+    .highlighter-settings.dark-mode .inline-drawer-content span:not(.hl-preset-tab-name):not(.hl-preview-highlight),
+    .highlighter-settings.dark-mode .inline-drawer-content small,
+    .highlighter-settings.dark-mode .inline-drawer-content strong,
+    .highlighter-settings.dark-mode .inline-drawer-content label,
+    .highlighter-settings.dark-mode .inline-drawer-content div:not(.hl-color-preview):not(.hl-color-preview-text):not(.hl-preset-tab),
+    .highlighter-settings.dark-mode .inline-drawer-content p,
+    .highlighter-settings.dark-mode .inline-drawer-content b {
+        color: #ccc !important;
+        font-size: inherit !important;
+    }
+
+    /* i 태그 다크모드 색상/크기 — ST 글로벌 오버라이드 */
+    .highlighter-settings.dark-mode .inline-drawer-content i {
+        color: inherit !important;
+        font-size: inherit !important;
+    }
+
+    /* 탭 다크모드 */
+    .highlighter-settings.dark-mode .hl-tab-nav {
+        border-bottom-color: #3a3a3a !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-tab-label {
+        color: #777 !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-tab-label:hover {
+        color: #aaa !important;
+    }
+
+    .highlighter-settings.dark-mode #hl-tab-general:checked~.hl-tab-nav .hl-tab-label[for="hl-tab-general"],
+    .highlighter-settings.dark-mode #hl-tab-color:checked~.hl-tab-nav .hl-tab-label[for="hl-tab-color"],
+    .highlighter-settings.dark-mode #hl-tab-data:checked~.hl-tab-nav .hl-tab-label[for="hl-tab-data"] {
+        color: #e0e0e0 !important;
+        border-bottom-color: #ccc !important;
+    }
+
+    /* 섹션 */
+    .highlighter-settings.dark-mode .hl-settings-group {
+        border-bottom-color: #333 !important;
+    }
+
+    /* 라벨/텍스트 */
+    .highlighter-settings.dark-mode .hl-setting-label,
+    .highlighter-settings.dark-mode .hl-check-text {
+        color: #ddd !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-setting-desc {
+        color: #777 !important;
+    }
+
+    /* Select 다크모드 — body prefix */
+    body .highlighter-settings.dark-mode select {
+        background: #2a2a2a !important;
+        background-color: #2a2a2a !important;
+        background-image: none !important;
+        color: #e0e0e0 !important;
+        border-color: #555 !important;
+    }
+
+    body .highlighter-settings.dark-mode select:hover {
+        border-color: #888 !important;
+    }
+
+    body .highlighter-settings.dark-mode select:focus,
+    body .highlighter-settings.dark-mode select:focus-visible {
+        border-color: #aaa !important;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06) !important;
+        outline: none !important;
+    }
+
+    /* 체크박스 다크모드 — body prefix */
+    body .highlighter-settings.dark-mode input[type="checkbox"] {
+        background: #3a3a3a !important;
+        background-color: #3a3a3a !important;
+        border-color: #666 !important;
+        box-shadow: none !important;
+        filter: none !important;
+    }
+
+    body .highlighter-settings.dark-mode input[type="checkbox"]::before {
+        display: none !important;
+        content: none !important;
+    }
+
+    body .highlighter-settings.dark-mode input[type="checkbox"]:hover {
+        border-color: #aaa !important;
+    }
+
+    body .highlighter-settings.dark-mode input[type="checkbox"]:checked {
+        background: #ccc !important;
+        background-color: #ccc !important;
+        border-color: #ccc !important;
+    }
+
+    body .highlighter-settings.dark-mode input[type="checkbox"]:checked::before {
+        display: none !important;
+        content: none !important;
+    }
+
+    body .highlighter-settings.dark-mode input[type="checkbox"]:checked::after {
+        color: #222 !important;
+    }
+
+    body .highlighter-settings.dark-mode input[type="checkbox"]:focus,
+    body .highlighter-settings.dark-mode input[type="checkbox"]:focus-visible {
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08) !important;
+        outline: none !important;
+    }
+
+    /* 버튼 */
+    body .highlighter-settings.dark-mode button.menu_button.hl-settings-btn {
+        background: #3a3a3a !important;
+        border-color: #555 !important;
+        color: #e0e0e0 !important;
+        filter: none !important;
+    }
+
+    body .highlighter-settings.dark-mode button.menu_button.hl-settings-btn:hover {
+        background: #444 !important;
+        border-color: #777 !important;
+    }
+
+    body .highlighter-settings.dark-mode button.menu_button.hl-settings-btn i {
+        color: inherit !important;
+    }
+
+    /* 프리셋 탭 다크모드 — body prefix */
+    .highlighter-settings.dark-mode .hl-preset-tabs {
+        border-bottom-color: #3a3a3a !important;
+    }
+
+    body .highlighter-settings.dark-mode .hl-preset-tab {
+        background: #2a2a2a !important;
+        border-color: #555 !important;
+        color: #aaa !important;
+    }
+
+    body .highlighter-settings.dark-mode .hl-preset-tab:hover {
+        background: #3a3a3a !important;
+        border-color: #777 !important;
+        color: #aaa !important;
+    }
+
+    body .highlighter-settings.dark-mode .hl-preset-tab.active {
+        background: #ccc !important;
+        border-color: #ccc !important;
+        color: #222 !important;
+    }
+
+    body .highlighter-settings.dark-mode .hl-preset-tab.selected:not(.active) {
+        border-color: #aaa !important;
+        background: #3a3a3a !important;
+    }
+
+    /* 프리셋 컨트롤 */
+    .highlighter-settings.dark-mode .hl-preset-controls {
+        background: #2a2a2a !important;
+        border-color: #3a3a3a !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-preset-title {
+        color: #e0e0e0 !important;
+    }
+
+    body .highlighter-settings.dark-mode .hl-preset-apply-btn,
+    body .highlighter-settings.dark-mode .hl-preset-rename-btn {
+        background: #3a3a3a !important;
+        border-color: #555 !important;
+        color: #ccc !important;
+    }
+
+    body .highlighter-settings.dark-mode .hl-preset-apply-btn:hover,
+    body .highlighter-settings.dark-mode .hl-preset-rename-btn:hover {
+        background: #444 !important;
+        border-color: #777 !important;
+    }
+
+    /* 빠른 색상 다크모드 */
+    .highlighter-settings.dark-mode .hl-quick-color-input {
+        background: #2a2a2a !important;
+        border-color: #3a3a3a !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-quick-color-input label {
+        color: #e0e0e0 !important;
+    }
+
+    body .highlighter-settings.dark-mode .hl-quick-color-field {
+        background: #3a3a3a !important;
+        background-color: #3a3a3a !important;
+        background-image: none !important;
+        border-color: #555 !important;
+        color: #e0e0e0 !important;
+    }
+
+    body .highlighter-settings.dark-mode .hl-quick-color-field:focus,
+    body .highlighter-settings.dark-mode .hl-quick-color-field:focus-visible {
+        border-color: #aaa !important;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06) !important;
+        outline: none !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-quick-color-hint {
+        color: #777 !important;
+    }
+
+    body .highlighter-settings.dark-mode .hl-quick-color-apply-btn {
+        background: #ccc !important;
+        border-color: #ccc !important;
+        color: #222 !important;
+    }
+
+    body .highlighter-settings.dark-mode .hl-quick-color-apply-btn:hover {
+        background: #ddd !important;
+    }
+
+    /* 색상 아이템 */
+    .highlighter-settings.dark-mode .hl-color-item {
+        background: #2a2a2a !important;
+        border-color: #3a3a3a !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-color-preview {
+        border-color: #555 !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-color-control-row label {
+        color: #aaa !important;
+    }
+
+    /* Number/Hex 다크모드 — body prefix */
+    body .highlighter-settings.dark-mode .hl-color-control-row input[type="number"],
+    body .highlighter-settings.dark-mode .hl-color-control-row input.hl-hex-input {
+        background: #3a3a3a !important;
+        background-color: #3a3a3a !important;
+        background-image: none !important;
+        border-color: #555 !important;
+        color: #e0e0e0 !important;
+    }
+
+    body .highlighter-settings.dark-mode .hl-color-control-row input[type="number"]:focus,
+    body .highlighter-settings.dark-mode .hl-color-control-row input[type="number"]:focus-visible,
+    body .highlighter-settings.dark-mode .hl-color-control-row input.hl-hex-input:focus,
+    body .highlighter-settings.dark-mode .hl-color-control-row input.hl-hex-input:focus-visible {
+        border-color: #aaa !important;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06) !important;
+        outline: none !important;
+    }
+
+    /* Color 인풋 다크모드 — body prefix */
+    body .highlighter-settings.dark-mode .hl-color-control-row input[type="color"] {
+        border-color: #555 !important;
+        background: #3a3a3a !important;
+        background-color: #3a3a3a !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-color-control-row .hl-use-default-label,
+    .highlighter-settings.dark-mode .hl-color-control-row .hl-use-default-label .hl-checkbox-text {
+        color: #aaa !important;
+    }
+
+    /* Range 다크모드 — body prefix */
+    body .highlighter-settings.dark-mode input[type="range"]::-webkit-slider-runnable-track {
+        background: #444 !important;
+    }
+
+    body .highlighter-settings.dark-mode input[type="range"]::-moz-range-track {
+        background: #444 !important;
+    }
+
+    body .highlighter-settings.dark-mode input[type="range"]::-webkit-slider-thumb {
+        background: #bbb !important;
+        border-color: #2a2a2a !important;
+    }
+
+    body .highlighter-settings.dark-mode input[type="range"]::-moz-range-thumb {
+        background: #bbb !important;
+        border-color: #2a2a2a !important;
+    }
+
+    /* Color picker 다크모드 — body prefix */
+    body .highlighter-settings.dark-mode input[type="color"] {
+        background: #3a3a3a !important;
+        background-color: #3a3a3a !important;
+        border-color: #555 !important;
+    }
+
+    /* 도움말 */
+    .highlighter-settings.dark-mode .hl-info-summary {
+        color: #777 !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-info-summary:hover {
+        color: #aaa !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-info-block {
+        background: rgba(255, 255, 255, 0.03) !important;
+        color: #999 !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-info-block strong {
+        color: #ccc !important;
+    }
+
+    .highlighter-settings.dark-mode .hl-info-block span {
+        color: inherit !important;
+    }
+
+    /* 데이터 탭 */
+    .highlighter-settings.dark-mode .hl-data-info {
+        color: #999 !important;
+        background: rgba(255, 255, 255, 0.03) !important;
+    }
+
+    /* 업데이트 상태 */
+    .highlighter-settings.dark-mode .hl-update-status {
+        color: #e0e0e0 !important;
     }
 </style>
