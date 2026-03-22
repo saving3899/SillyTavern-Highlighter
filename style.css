@@ -1030,7 +1030,7 @@ body.dark .highlighter-content .hl-default-avatar {
 .hl-highlight-item {
     display: flex !important;
     padding: 14px 16px !important;
-    padding-right: 10px !important;
+    padding-right: 8px !important;
     border-bottom: 1px solid #f0f0f0 !important;
     position: relative !important;
     transition: background-color 0.2s !important;
@@ -1046,7 +1046,8 @@ body.dark .highlighter-content .hl-default-avatar {
     position: absolute !important;
     left: 0 !important;
     top: 16px !important;
-    bottom: 16px !important;
+    /* bottom: 16px !important; */
+    height: 16px;
     width: 4px !important;
     background: var(--highlight-color) !important;
     border-radius: 0 2px 2px 0 !important;
@@ -1072,6 +1073,11 @@ body.dark .highlighter-content .hl-default-avatar {
     color: #666666 !important;
 }
 
+.hl-highlight-item .hl-more-btn,
+.hl-bookmark-item .hl-more-btn {
+    transform: translate(0px, -5px);
+}
+
 .hl-more-btn:hover {
     background: rgba(0, 0, 0, 0.05) !important;
     color: #333333 !important;
@@ -1084,6 +1090,17 @@ body.dark .highlighter-content .hl-default-avatar {
 #highlighter-panel.dark-mode .hl-more-btn:hover {
     background: rgba(255, 255, 255, 0.1) !important;
     color: #e0e0e0 !important;
+}
+
+/* 북마크 */
+.hl-bookmark-item {
+    display: flex !important;
+    padding: 14px 16px !important;
+    padding-right: 8px !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+    position: relative !important;
+    transition: background-color 0.2s !important;
+    gap: 4px !important;
 }
 
 /* More 메뉴 드롭다운 */
@@ -2278,12 +2295,10 @@ body.dark .highlighter-content .hl-default-avatar {
         min-height: 60px !important;
     }
 
-    .hl-highlight-item {
-        padding: 14px !important;
-    }
-
+    .hl-highlight-item,
     .hl-bookmark-item {
-        padding: 12px 14px !important;
+        padding: 14px !important;
+        padding-right: 10px !important;
     }
 
     /* 하이라이트 텍스트 모바일 최적화 */
@@ -2747,14 +2762,6 @@ body.dark .highlighter-content .hl-default-avatar {
    ==================================== */
 
 /* 패널 내 책갈피 아이템 - hl-highlight-item과 동일한 구조 */
-.hl-bookmark-item {
-    display: flex !important;
-    padding: 14px 16px !important;
-    border-bottom: 1px solid #f0f0f0 !important;
-    position: relative !important;
-    transition: background-color 0.2s !important;
-    gap: 4px !important;
-}
 
 .hl-bookmark-item .hl-content {
     padding-left: 16px !important;

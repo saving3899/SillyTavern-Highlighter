@@ -472,98 +472,113 @@ export function applyOriginalTextFallbackHighlight(element, hl) {
     const bgColor = getBackgroundColorFromHex(displayColor);
 
     const syncText = hl.translatorOriginalText;
-    const normalizedSync = syncText.replace(/\s+/g, ' ').trim();
+    const syncParagraphs = syncText.split('\n\n');
 
     // .custom-original_text 요소들에서 원문 찾기
-    // 번역 삭제/원문 토글 등으로 번역기 마크업이 없으면 전체 요소에서 검색
     const originalSpans = element.querySelectorAll('.custom-original_text');
+
+    // 다중 문단: 각 원문 span에 대응되는 문단 매칭
+    if (originalSpans.length > 0 && syncParagraphs.length > 1) {
+        const targets = [...originalSpans];
+        for (let i = 0; i < targets.length && i < syncParagraphs.length; i++) {
+            if (targets[i].querySelector(`.text-highlight[data-hl-id="${hl.id}"]`)) continue;
+            _applyFallbackToSpan(targets[i], syncParagraphs[i], hl, bgColor);
+        }
+        return;
+    }
+
+    // 단일 문단 / 번역기 마크업 없는 경우
+    const normalizedSync = syncText.replace(/\s+/g, ' ').trim();
     const searchTargets = originalSpans.length > 0 ? originalSpans : [element];
     for (const origSpan of searchTargets) {
-        // 이미 이 ID로 하이라이트가 적용되었는지 확인
         if (origSpan.querySelector(`.text-highlight[data-hl-id="${hl.id}"]`)) return;
+        _applyFallbackToSpan(origSpan, syncText, hl, bgColor);
+    }
+}
 
-        const walker = document.createTreeWalker(origSpan, NodeFilter.SHOW_TEXT, null, false);
-        const textNodes = [];
-        let fullText = '';
-        while (walker.nextNode()) {
-            textNodes.push(walker.currentNode);
-            fullText += walker.currentNode.textContent;
-        }
+function _applyFallbackToSpan(origSpan, syncText, hl, bgColor) {
+    const normalizedSync = syncText.replace(/\s+/g, ' ').trim();
 
-        const normalizedFull = fullText.replace(/\s+/g, ' ').trim();
-        if (!normalizedFull.includes(normalizedSync) && normalizedSync !== normalizedFull) continue;
+    const walker = document.createTreeWalker(origSpan, NodeFilter.SHOW_TEXT, null, false);
+    const textNodes = [];
+    let fullText = '';
+    while (walker.nextNode()) {
+        textNodes.push(walker.currentNode);
+        fullText += walker.currentNode.textContent;
+    }
 
-        // 정규화 인덱스 매핑
-        let normalizedFullText = '';
-        const indexMap = [];
-        let inWhitespace = false;
-        for (let i = 0; i < fullText.length; i++) {
-            const char = fullText[i];
-            if (/\s/.test(char)) {
-                if (!inWhitespace && normalizedFullText.length > 0) {
-                    normalizedFullText += ' ';
-                    indexMap.push(i);
-                    inWhitespace = true;
-                }
-            } else {
-                normalizedFullText += char;
+    const normalizedFull = fullText.replace(/\s+/g, ' ').trim();
+    if (!normalizedFull.includes(normalizedSync) && normalizedSync !== normalizedFull) return;
+
+    // 정규화 인덱스 매핑
+    let normalizedFullText = '';
+    const indexMap = [];
+    let inWhitespace = false;
+    for (let i = 0; i < fullText.length; i++) {
+        const char = fullText[i];
+        if (/\s/.test(char)) {
+            if (!inWhitespace && normalizedFullText.length > 0) {
+                normalizedFullText += ' ';
                 indexMap.push(i);
-                inWhitespace = false;
+                inWhitespace = true;
             }
+        } else {
+            normalizedFullText += char;
+            indexMap.push(i);
+            inWhitespace = false;
         }
-        normalizedFullText = normalizedFullText.trim();
+    }
+    normalizedFullText = normalizedFullText.trim();
 
-        const startNorm = normalizedFullText.indexOf(normalizedSync);
-        if (startNorm === -1) {
-            // 전체 매칭 폴백
-            textNodes.forEach(node => {
-                const span = document.createElement('span');
-                span.className = 'text-highlight';
-                span.setAttribute('data-hl-id', hl.id);
-                span.setAttribute('data-color', hl.color);
-                span.style.backgroundColor = bgColor;
-                span.style.opacity = '0.8';
-                span.textContent = node.textContent;
-                node.parentNode.replaceChild(span, node);
-            });
-            return;
-        }
-
-        const endNorm = startNorm + normalizedSync.length;
-        const startIndex = indexMap[startNorm] || 0;
-        const endIndex = (indexMap[endNorm - 1] !== undefined ? indexMap[endNorm - 1] + 1 : fullText.length);
-
-        let currentPos = 0;
+    const startNorm = normalizedFullText.indexOf(normalizedSync);
+    if (startNorm === -1) {
+        // 전체 매칭 폴백
         textNodes.forEach(node => {
-            const nodeStart = currentPos;
-            const nodeEnd = nodeStart + node.textContent.length;
-            currentPos = nodeEnd;
-
-            if (nodeEnd <= startIndex || nodeStart >= endIndex) return;
-
-            const overlapStart = Math.max(0, startIndex - nodeStart);
-            const overlapEnd = Math.min(node.textContent.length, endIndex - nodeStart);
-
-            const before = node.textContent.substring(0, overlapStart);
-            const highlight = node.textContent.substring(overlapStart, overlapEnd);
-            const after = node.textContent.substring(overlapEnd);
-
             const span = document.createElement('span');
             span.className = 'text-highlight';
             span.setAttribute('data-hl-id', hl.id);
             span.setAttribute('data-color', hl.color);
             span.style.backgroundColor = bgColor;
             span.style.opacity = '0.8';
-            span.textContent = highlight;
-
-            const fragment = document.createDocumentFragment();
-            if (before) fragment.appendChild(document.createTextNode(before));
-            fragment.appendChild(span);
-            if (after) fragment.appendChild(document.createTextNode(after));
-            node.parentNode.replaceChild(fragment, node);
+            span.textContent = node.textContent;
+            node.parentNode.replaceChild(span, node);
         });
         return;
     }
+
+    const endNorm = startNorm + normalizedSync.length;
+    const startIndex = indexMap[startNorm] || 0;
+    const endIndex = (indexMap[endNorm - 1] !== undefined ? indexMap[endNorm - 1] + 1 : fullText.length);
+
+    let currentPos = 0;
+    textNodes.forEach(node => {
+        const nodeStart = currentPos;
+        const nodeEnd = nodeStart + node.textContent.length;
+        currentPos = nodeEnd;
+
+        if (nodeEnd <= startIndex || nodeStart >= endIndex) return;
+
+        const overlapStart = Math.max(0, startIndex - nodeStart);
+        const overlapEnd = Math.min(node.textContent.length, endIndex - nodeStart);
+
+        const before = node.textContent.substring(0, overlapStart);
+        const highlight = node.textContent.substring(overlapStart, overlapEnd);
+        const after = node.textContent.substring(overlapEnd);
+
+        const span = document.createElement('span');
+        span.className = 'text-highlight';
+        span.setAttribute('data-hl-id', hl.id);
+        span.setAttribute('data-color', hl.color);
+        span.style.backgroundColor = bgColor;
+        span.style.opacity = '0.8';
+        span.textContent = highlight;
+
+        const fragment = document.createDocumentFragment();
+        if (before) fragment.appendChild(document.createTextNode(before));
+        fragment.appendChild(span);
+        if (after) fragment.appendChild(document.createTextNode(after));
+        node.parentNode.replaceChild(fragment, node);
+    });
 }
 
 /**
@@ -593,50 +608,63 @@ export function applyTranslatorSyncHighlight(element, hl) {
     }
     if (!syncText) return;
 
-    let targetSelector;
-    if (hl.sourceType === 'translated') {
-        targetSelector = '.custom-original_text';
-    } else {
-        targetSelector = '.custom-translated_text';
-    }
+    const targetClass = hl.sourceType === 'translated' ? 'custom-original_text' : 'custom-translated_text';
 
     // 원문 쪽에만 opacity 적용 (번역문 쪽은 항상 1.0)
-    const syncOpacity = (targetSelector === '.custom-original_text') ? '0.8' : '1';
+    const syncOpacity = (targetClass === 'custom-original_text') ? '0.8' : '1';
 
-    // 하이라이트된 span이 속한 번역기 컨테이너 찾기
-    const firstSpan = existingSpans[0];
-    const parentSpan = firstSpan.closest('.custom-translated_text') || firstSpan.closest('.custom-original_text');
-    if (!parentSpan) return;
-
-    let pairSpan = null;
-
-    // Case 1: <details> wrapper가 있는 경우
-    const detailsContainer = parentSpan.closest('.custom-llm-translator-details');
-    if (detailsContainer) {
-        pairSpan = detailsContainer.querySelector(targetSelector);
-    } else {
-        // Case 2: unfolded 모드 - 형제 관계
-        if (hl.sourceType === 'translated') {
-            let sibling = parentSpan.nextElementSibling;
-            while (sibling) {
-                if (sibling.classList.contains('custom-original_text')) { pairSpan = sibling; break; }
-                sibling = sibling.nextElementSibling;
-            }
-        } else {
-            let sibling = parentSpan.previousElementSibling;
-            while (sibling) {
-                if (sibling.classList.contains('custom-translated_text')) { pairSpan = sibling; break; }
-                sibling = sibling.previousElementSibling;
-            }
+    // 하이라이트 span들이 속한 번역기 부모 요소들 수집 (DOM 순서)
+    const parentSet = new Set();
+    const parentEls = [];
+    for (const span of existingSpans) {
+        const p = span.closest('.custom-translated_text') || span.closest('.custom-original_text');
+        if (p && !parentSet.has(p)) {
+            parentSet.add(p);
+            parentEls.push(p);
         }
     }
 
-    if (!pairSpan) return;
+    // 각 부모의 쌍 요소 수집
+    const pairSpans = [];
+    for (const parentEl of parentEls) {
+        const pair = _findPairElement(parentEl, targetClass);
+        if (pair && !pair.querySelector(`.text-highlight[data-hl-id="${hl.id}"]`)) {
+            pairSpans.push(pair);
+        }
+    }
 
-    // 이미 이 ID로 하이라이트가 적용되었는지 확인
-    if (pairSpan.querySelector(`.text-highlight[data-hl-id="${hl.id}"]`)) return;
+    if (!pairSpans.length) return;
 
-    // 대응 쪽에서 텍스트 노드 수집
+    // syncText를 문단으로 분리, 각 pairSpan에 대응
+    const syncParagraphs = syncText.split('\n\n');
+
+    for (let i = 0; i < pairSpans.length; i++) {
+        const paragraphText = (pairSpans.length === syncParagraphs.length)
+            ? syncParagraphs[i]
+            : syncText; // 개수 불일치 시 전체 텍스트로 폴백
+        _applySyncToPairSpan(pairSpans[i], paragraphText, hl, bgColor, syncOpacity);
+    }
+}
+
+// 번역기 요소의 쌍 찾기 헬퍼
+function _findPairElement(el, targetClass) {
+    const detailsContainer = el.closest('.custom-llm-translator-details');
+    if (detailsContainer) {
+        return detailsContainer.querySelector('.' + targetClass);
+    }
+    const isForward = targetClass === 'custom-original_text';
+    let sibling = isForward ? el.nextElementSibling : el.previousElementSibling;
+    while (sibling) {
+        if (sibling.classList.contains(targetClass)) return sibling;
+        if (isForward && sibling.classList.contains('custom-translated_text')) break;
+        if (!isForward && sibling.classList.contains('custom-original_text')) break;
+        sibling = isForward ? sibling.nextElementSibling : sibling.previousElementSibling;
+    }
+    return null;
+}
+
+// 단일 pairSpan에 동기화 하이라이트 적용
+function _applySyncToPairSpan(pairSpan, syncText, hl, bgColor, syncOpacity) {
     const walker = document.createTreeWalker(pairSpan, NodeFilter.SHOW_TEXT, null, false);
     const textNodes = [];
     let fullText = '';
@@ -645,7 +673,6 @@ export function applyTranslatorSyncHighlight(element, hl) {
         fullText += walker.currentNode.textContent;
     }
 
-    // 정규화된 텍스트 매칭으로 부분/전체 하이라이트 결정
     const normalizedSync = syncText.replace(/\s+/g, ' ').trim();
     const normalizedFull = fullText.replace(/\s+/g, ' ').trim();
 
@@ -663,7 +690,6 @@ export function applyTranslatorSyncHighlight(element, hl) {
     };
 
     if (normalizedSync === normalizedFull) {
-        // 전체 일치 - 모든 텍스트 노드 하이라이트
         wrapAllNodes();
         return;
     }
@@ -690,7 +716,6 @@ export function applyTranslatorSyncHighlight(element, hl) {
 
     const startNorm = normalizedFullText.indexOf(normalizedSync);
     if (startNorm === -1) {
-        // 매칭 실패 시 전체 하이라이트 폴백
         wrapAllNodes();
         return;
     }

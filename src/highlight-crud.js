@@ -45,7 +45,27 @@ function calculateTextOffset(mesElement, range) {
     return 0;
 }
 
-// LLM 번역기 DOM에서 번역문/원문 쌍 감지
+// 번역기 요소의 쌍 찾기 헬퍼
+function findTranslatorPair(el, pairClass) {
+    // Case 1: <details> 래퍼
+    const detailsContainer = el.closest('.custom-llm-translator-details');
+    if (detailsContainer) {
+        return detailsContainer.querySelector('.' + pairClass);
+    }
+    // Case 2: 형제 관계 (unfolded 모드)
+    const isForward = pairClass === 'custom-original_text';
+    let sibling = isForward ? el.nextElementSibling : el.previousElementSibling;
+    while (sibling) {
+        if (sibling.classList.contains(pairClass)) return sibling;
+        // 다른 번역기 요소를 만나면 쌍이 아님 → 탐색 중단
+        if (isForward && sibling.classList.contains('custom-translated_text')) break;
+        if (!isForward && sibling.classList.contains('custom-original_text')) break;
+        sibling = isForward ? sibling.nextElementSibling : sibling.previousElementSibling;
+    }
+    return null;
+}
+
+// LLM 번역기 DOM에서 번역문/원문 쌍 감지 (다중 문단 지원)
 function detectTranslatorContext(range) {
     if (!state.settings.translatorCompat) return null;
 
@@ -62,46 +82,53 @@ function detectTranslatorContext(range) {
     // 번역기 컨텍스트가 아니면 null
     if (!startTranslated && !startOriginal && !endTranslated && !endOriginal) return null;
 
-    // sourceType 결정
+    // sourceType: 시작 노드 기준 (시작이 번역기 밖이면 끝 기준)
     let sourceType;
-    if (startTranslated && endTranslated) sourceType = 'translated';
-    else if (startOriginal && endOriginal) sourceType = 'original';
-    else sourceType = 'mixed';
+    if (startTranslated) sourceType = 'translated';
+    else if (startOriginal) sourceType = 'original';
+    else if (endTranslated) sourceType = 'translated';
+    else sourceType = 'original';
 
-    // 번역기 컨테이너에서 쌍 텍스트 추출
-    const refSpan = startTranslated || startOriginal || endTranslated || endOriginal;
+    // 선택 범위 내 모든 번역/원문 요소 수집
+    const ancestor = range.commonAncestorContainer;
+    let container = ancestor.nodeType === 3 ? ancestor.parentElement : ancestor;
 
-    let translatedEl = null;
-    let originalEl = null;
-
-    // Case 1: <details> 래퍼가 있는 경우 (folded / original-first 모드)
-    const detailsContainer = refSpan.closest('.custom-llm-translator-details');
-    if (detailsContainer) {
-        translatedEl = detailsContainer.querySelector('.custom-translated_text');
-        originalEl = detailsContainer.querySelector('.custom-original_text');
-    } else {
-        // Case 2: unfolded 모드 - 형제 관계 (wrapper 없음)
-        if (refSpan.classList.contains('custom-translated_text')) {
-            translatedEl = refSpan;
-            let sibling = refSpan.nextElementSibling;
-            while (sibling) {
-                if (sibling.classList.contains('custom-original_text')) { originalEl = sibling; break; }
-                sibling = sibling.nextElementSibling;
-            }
-        } else if (refSpan.classList.contains('custom-original_text')) {
-            originalEl = refSpan;
-            let sibling = refSpan.previousElementSibling;
-            while (sibling) {
-                if (sibling.classList.contains('custom-translated_text')) { translatedEl = sibling; break; }
-                sibling = sibling.previousElementSibling;
-            }
-        }
+    // container가 번역기 요소 내부이면 상위 .mes_text로 확장
+    if (container.closest?.('.custom-translated_text') || container.closest?.('.custom-original_text')) {
+        container = container.closest('.mes_text') || container.parentElement;
     }
+
+    const translatedInRange = [...container.querySelectorAll('.custom-translated_text')]
+        .filter(el => range.intersectsNode(el));
+    const originalInRange = [...container.querySelectorAll('.custom-original_text')]
+        .filter(el => range.intersectsNode(el));
+
+    // 쌍 수집: range 내 요소들의 쌍 원문/번역문도 포함
+    const translatedSet = new Set(translatedInRange);
+    const originalSet = new Set(originalInRange);
+
+    for (const el of translatedInRange) {
+        const pair = findTranslatorPair(el, 'custom-original_text');
+        if (pair) originalSet.add(pair);
+    }
+    for (const el of originalInRange) {
+        const pair = findTranslatorPair(el, 'custom-translated_text');
+        if (pair) translatedSet.add(pair);
+    }
+
+    // DOM 순서로 정렬하여 텍스트 수집
+    const allInDOM = [...container.querySelectorAll('.custom-translated_text, .custom-original_text')];
+    const orderedTranslated = allInDOM.filter(el => el.classList.contains('custom-translated_text') && translatedSet.has(el));
+    const orderedOriginal = allInDOM.filter(el => el.classList.contains('custom-original_text') && originalSet.has(el));
 
     return {
         sourceType,
-        translatedText: translatedEl ? translatedEl.textContent.trim() : null,
-        translatorOriginalText: originalEl ? originalEl.textContent.trim() : null
+        translatedText: orderedTranslated.length > 0
+            ? orderedTranslated.map(el => el.textContent.trim()).filter(Boolean).join('\n\n')
+            : null,
+        translatorOriginalText: orderedOriginal.length > 0
+            ? orderedOriginal.map(el => el.textContent.trim()).filter(Boolean).join('\n\n')
+            : null
     };
 }
 
@@ -293,6 +320,11 @@ export function createHighlight(text, color, range, el) {
             while (originalWalker.nextNode()) {
                 const node = originalWalker.currentNode;
                 if (range.intersectsNode(node) && node.textContent.trim()) {
+                    // LLM 번역기 호환: 대립 텍스트 영역의 노드는 제외 (동기화 하이라이트에서 별도 처리)
+                    if (translatorCtx?.sourceType === 'translated' &&
+                        node.parentElement?.closest('.custom-original_text')) continue;
+                    if (translatorCtx?.sourceType === 'original' &&
+                        node.parentElement?.closest('.custom-translated_text')) continue;
                     nodesToWrap.push(node);
                 }
             }
