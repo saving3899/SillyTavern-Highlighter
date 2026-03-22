@@ -110,6 +110,27 @@ export function validateAndRepairSettings(data) {
                     console.warn(`[SillyTavern-Highlighter] highlights is not an array for ${charId}/${chatFile}, converting`);
                     chatData.highlights = [];
                 }
+
+                // lastModified가 없으면 최신 형광펜 타임스탬프로 초기화 (정렬용)
+                if (!chatData.lastModified && chatData.highlights.length > 0) {
+                    chatData.lastModified = chatData.highlights.reduce(
+                        (max, h) => Math.max(max, h.timestamp || 0), 0
+                    ) || Date.now();
+                }
+            }
+        }
+
+        // bookmarks lastModified 초기화
+        for (const charId in data.bookmarks) {
+            if (!data.bookmarks[charId] || typeof data.bookmarks[charId] !== 'object') continue;
+            for (const chatFile in data.bookmarks[charId]) {
+                const bmData = data.bookmarks[charId][chatFile];
+                if (!bmData) continue;
+                if (!bmData.lastModified && bmData.bookmarks?.length > 0) {
+                    bmData.lastModified = bmData.bookmarks.reduce(
+                        (max, b) => Math.max(max, b.timestamp || 0), 0
+                    ) || Date.now();
+                }
             }
         }
 

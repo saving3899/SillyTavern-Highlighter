@@ -303,7 +303,7 @@ async function repairUnmatchedChatData() {
         try {
             const response = await fetch('/api/characters/chats', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: context.getRequestHeaders(),
                 body: JSON.stringify({ avatar_url: char.avatar })
             });
             if (response.ok) {
@@ -576,18 +576,22 @@ async function jumpToMessage(mesId, hlId) {
             } else {
                 // 1:1 채팅: API로 채팅 목록 조회
                 const charData = findCharacterByKey(targetCharKey);
-                if (charData?.avatar) {
+                const avatarUrl = charData?.avatar || context.characters?.[context.characterId]?.avatar;
+                if (avatarUrl) {
                     const response = await fetch('/api/characters/chats', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ avatar_url: charData.avatar }),
+                        headers: context.getRequestHeaders(),
+                        body: JSON.stringify({ avatar_url: avatarUrl, simple: true }),
                     });
                     if (response.ok) {
                         const chats = await response.json();
-                        chatExists = chats.some(c => {
-                            const name = c.file_name?.replace('.jsonl', '');
-                            return name === targetChatFile;
-                        });
+                        if (Array.isArray(chats)) {
+                            chatExists = chats.some(c =>
+                                c.file_name === `${targetChatFile}.jsonl` ||
+                                c.file_name === targetChatFile ||
+                                c.file_id === targetChatFile
+                            );
+                        }
                     }
                 }
             }
@@ -650,21 +654,25 @@ async function jumpToMessage(mesId, hlId) {
 function showDeletedChatAlert(type, charName, chatFile) {
     $('#highlight-deleted-alert-modal').remove();
 
+    const isDark = getDarkModeClass() === 'dark-mode';
+    const textColor = isDark ? '#e0e0e0' : '#333';
+    const subColor = isDark ? '#b0b0b0' : '#666';
+
     const title = type === 'character' ? '캐릭터가 삭제되었습니다' : '채팅이 삭제되었습니다';
     const message = type === 'character'
-        ? `<p>이 형광펜이 속한 캐릭터 <strong>"${charName}"</strong>가 삭제되었거나 찾을 수 없습니다.</p>
-           <p>형광펜은 독서노트 패널에 보관되어 있으며, 원하시면 삭제할 수 있습니다.</p>`
-        : `<p>이 형광펜이 속한 채팅 <strong>"${chatFile}"</strong>이 삭제되었거나 찾을 수 없습니다.</p>
-           <p>형광펜은 독서노트 패널에 보관되어 있으며, 원하시면 삭제할 수 있습니다.</p>`;
+        ? `<p style="color: ${textColor} !important;">이 형광펜이 속한 캐릭터 <strong style="color: ${textColor} !important;">"${escapeHtml(charName)}"</strong>가 삭제되었거나 찾을 수 없습니다.</p>
+           <p style="color: ${subColor} !important;">형광펜은 독서노트 패널에 보관되어 있으며, 원하시면 삭제할 수 있습니다.</p>`
+        : `<p style="color: ${textColor} !important;">이 형광펜이 속한 채팅 <strong style="color: ${textColor} !important;">"${escapeHtml(chatFile)}"</strong>이 삭제되었거나 찾을 수 없습니다.</p>
+           <p style="color: ${subColor} !important;">형광펜은 독서노트 패널에 보관되어 있으며, 원하시면 삭제할 수 있습니다.</p>`;
 
     const modal = `
         <div id="highlight-deleted-alert-modal" class="hl-modal-overlay">
             <div class="hl-modal ${getDarkModeClass()}" style="max-width: 500px;">
                 <div class="hl-modal-header">
-                    <h3><i class="fa-solid fa-triangle-exclamation" style="color: #ff9800;"></i> ${title}</h3>
-                    <button class="hl-modal-close"><i class="fa-solid fa-times"></i></button>
+                    <h3 style="color: ${textColor} !important;"><i class="fa-solid fa-triangle-exclamation" style="color: #ff9800 !important;"></i> ${title}</h3>
+                    <button class="hl-modal-close"><i class="fa-solid fa-times" style="color: ${subColor} !important;"></i></button>
                 </div>
-                <div class="hl-modal-body">
+                <div class="hl-modal-body" style="color: ${textColor} !important;">
                     ${message}
                 </div>
                 <div class="hl-modal-footer">

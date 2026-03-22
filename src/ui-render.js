@@ -378,19 +378,11 @@ export function renderCharacterList($container, activeTab) {
             return sortDir === 'asc' ? cmp : -cmp;
         });
     } else {
-        // 최근 수정순
+        // 최근 수정순: 가장 최근 형광펜/책갈피의 생성 시간 기준
         charIds.sort((a, b) => {
-            const chatsA = state.settings.highlights[a] || {};
-            const chatsB = state.settings.highlights[b] || {};
-            const bmChatsA = state.settings.bookmarks?.[a] || {};
-            const bmChatsB = state.settings.bookmarks?.[b] || {};
-            const hlModA = Object.values(chatsA).length ? Math.max(...Object.values(chatsA).map(c => c.lastModified || 0)) : 0;
-            const hlModB = Object.values(chatsB).length ? Math.max(...Object.values(chatsB).map(c => c.lastModified || 0)) : 0;
-            const bmModA = Object.values(bmChatsA).length ? Math.max(...Object.values(bmChatsA).map(c => c.lastModified || 0)) : 0;
-            const bmModB = Object.values(bmChatsB).length ? Math.max(...Object.values(bmChatsB).map(c => c.lastModified || 0)) : 0;
-            const lastModifiedA = Math.max(hlModA, bmModA);
-            const lastModifiedB = Math.max(hlModB, bmModB);
-            return (lastModifiedB - lastModifiedA) * dirMul;
+            const newestA = getNewestItemTimestamp(a);
+            const newestB = getNewestItemTimestamp(b);
+            return (newestB - newestA) * dirMul;
         });
     }
 
@@ -595,13 +587,13 @@ export function renderChatList($container, characterId, activeTab) {
             return sortDir === 'asc' ? cmp : -cmp;
         });
     } else {
-        // 최근 수정순
+        // 최근 수정순: 가장 최근 형광펜/책갈피의 생성 시간 기준
         chatFiles.sort((a, b) => {
-            const lastModifiedA = Math.max(chats[a]?.lastModified || 0, bookmarkChats[a]?.lastModified || 0);
-            const lastModifiedB = Math.max(chats[b]?.lastModified || 0, bookmarkChats[b]?.lastModified || 0);
+            const newestA = getNewestItemTimestampForChat(chats[a], bookmarkChats[a]);
+            const newestB = getNewestItemTimestampForChat(chats[b], bookmarkChats[b]);
             return sortDir === 'asc'
-                ? lastModifiedA - lastModifiedB
-                : lastModifiedB - lastModifiedA;
+                ? newestA - newestB
+                : newestB - newestA;
         });
     }
 
@@ -934,6 +926,48 @@ function appendBookmarkItems($container, bookmarks, characterId) {
 // ====================================
 // 정렬 / 통합 렌더링
 // ====================================
+
+/**
+ * 채팅 하나의 가장 최근 형광펜/책갈피 생성 타임스탬프 반환
+ */
+function getNewestItemTimestampForChat(chatData, bmData) {
+    let newest = 0;
+    if (chatData?.highlights?.length) {
+        for (const h of chatData.highlights) {
+            if (h.timestamp > newest) newest = h.timestamp;
+        }
+    }
+    if (bmData?.bookmarks?.length) {
+        for (const b of bmData.bookmarks) {
+            if (b.timestamp > newest) newest = b.timestamp;
+        }
+    }
+    return newest;
+}
+
+/**
+ * 캐릭터의 모든 채팅에서 가장 최근 형광펜/책갈피 생성 타임스탬프 반환
+ */
+function getNewestItemTimestamp(charKey) {
+    let newest = 0;
+    const chats = state.settings.highlights[charKey] || {};
+    for (const chatData of Object.values(chats)) {
+        if (chatData?.highlights?.length) {
+            for (const h of chatData.highlights) {
+                if (h.timestamp > newest) newest = h.timestamp;
+            }
+        }
+    }
+    const bmChats = state.settings.bookmarks?.[charKey] || {};
+    for (const bmData of Object.values(bmChats)) {
+        if (bmData?.bookmarks?.length) {
+            for (const b of bmData.bookmarks) {
+                if (b.timestamp > newest) newest = b.timestamp;
+            }
+        }
+    }
+    return newest;
+}
 
 /**
  * 공용 정렬 함수 (형광펜/책갈피 통합 정렬)

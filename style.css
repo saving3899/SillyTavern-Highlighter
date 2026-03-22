@@ -1942,6 +1942,25 @@ body.dark .highlighter-content .hl-default-avatar {
     font-weight: 400 !important;
 }
 
+.hl-modal-confirm {
+    background: #555 !important;
+    color: #fff !important;
+    font-weight: 500 !important;
+}
+
+.hl-modal-confirm:hover {
+    background: #444 !important;
+}
+
+.hl-modal.dark-mode .hl-modal-confirm {
+    background: #555 !important;
+    color: #fff !important;
+}
+
+.hl-modal.dark-mode .hl-modal-confirm:hover {
+    background: #666 !important;
+}
+
 /* 메모 모달 정보 박스 */
 .hl-memo-modal-info {
     margin-bottom: 12px !important;
