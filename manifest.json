@@ -6,8 +6,8 @@
     "js": "index.js",
     "css": "style.css",
     "author": "saving3899",
-    "version": "1.3.51",
-    "updateMessage": "1.3.51: [제작/협업] 탭에 업로드된 업데이트 안내글 확인 필수",
+    "version": "1.3.52",
+    "updateMessage": "1.3.52: [제작/협업] 탭에 업로드된 업데이트 안내글 확인 필수",
     "homePage": "https://github.com/saving3899/SillyTavern-Highlighter",
     "description": "이북앱 스타일 형광펜 모드 / 깡갤 대피소, 깡통 사이트에서만 배포됨"
 }

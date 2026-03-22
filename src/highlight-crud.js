@@ -167,6 +167,15 @@ export function createHighlight(text, color, range, el) {
         tempDiv.querySelectorAll(selector).forEach(el => el.remove());
     });
 
+    // ⭐ 블록 요소 경계에 줄바꿈 마커 삽입 (문단 구분 보존)
+    tempDiv.querySelectorAll('br').forEach(el => {
+        el.replaceWith(document.createTextNode('\n'));
+    });
+    tempDiv.querySelectorAll('p, blockquote, h1, h2, h3, h4, h5, h6, li, tr, hr').forEach(el => {
+        el.before(document.createTextNode('\n'));
+        el.after(document.createTextNode('\n'));
+    });
+
     // ⭐ TreeWalker로 텍스트 추출
     const textWalker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
     let actualText = '';

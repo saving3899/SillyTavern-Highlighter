@@ -630,7 +630,7 @@ export function renderChatList($container, characterId, activeTab) {
                         previewText = latest.translatedText;
                     }
                 }
-                preview = previewText.substring(0, 50) + (previewText.length > 50 ? '...' : '');
+                preview = previewText.replace(/\n/g, ' ').substring(0, 50) + (previewText.length > 50 ? '...' : '');
             }
         } else if (bmCount > 0) {
             const latestBm = bookmarkChats[chatFile].bookmarks[bookmarkChats[chatFile].bookmarks.length - 1];
